@@ -21,9 +21,9 @@ exports.append = (xs, x) => {
 };
 
 const LOG_NOTHING = 0;
-const LOG_INFOS = 1;
+const LOG_ERRORS = 1;
 const LOG_WARNINGS = 2;
-const LOG_ERRORS = 3;
+const LOG_INFOS = 3;
 
 var logLevel = isDev ? LOG_WARNINGS : LOG_ERRORS;
 
