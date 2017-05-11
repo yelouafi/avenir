@@ -29,19 +29,6 @@ test("Future.cancel", assert => {
   assert.end();
 });
 
-test("Future.constructor", assert => {
-  try {
-    const f = new Future("bad argument");
-    assert.fail("Should detect bad arg to Future constructor");
-  } catch (err) {
-    assert.equal(
-      err[Future.ERR_ID],
-      Future.ERR_BAD_ARG,
-      "Should detect bad arg to Future constructor"
-    );
-  }
-  assert.end();
-});
 
 test("Future executor.resolve", assert => {
   let resolve;
