@@ -31,7 +31,9 @@ class Task {
     assertFunc(onError);
     assertFunc(onCancel);
 
-    this.fork().subscribe(onSuccess, onError, onCancel);
+    const fut = this.fork()
+    fut.subscribe(onSuccess, onError, onCancel);
+    return fut
   }
 
   static empty() {
@@ -52,7 +54,7 @@ class Task {
   }
 
   static of(a) {
-    return new Task.from(k => k(a));
+    return Task.from(k => k(a));
   }
 
   static zipw(f, c1, c2) {
@@ -131,6 +133,14 @@ class Task {
     return Task.all(cs).map(as => f.apply(ctx, as));
   }
 
+  log(prefix) {
+    return this.run(
+      v => console.log(prefix, ': resolved with ', v),
+      e => console.error(prefix, ': rejected with ', e),
+      r => console.log(prefix, ': cancelled with ', r)
+    )
+  }
+
   static do(gf) {
     return new Task(() => {
       const g = gf();
@@ -143,8 +153,14 @@ class Task {
             return Future.of(value);
           }
           return value.fork().then(
-            next,
-            e => next(e, true),
+            v => {
+              //console.log('next', a)
+              return next(v)
+            },
+            e => {
+              //console.log('next err', a)
+              return next(e, true)
+            },
             r => {
               g.return(r);
               return Future.cancel(r);
