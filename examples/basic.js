@@ -12,7 +12,7 @@ const sum = delay(1000, 10).then(x =>
 );
 
 /**
- * Note that until no we're not executed anything yet. W're just composed the
+ * Note that until no we're not executing anything yet. We've just composed the
  * steps of our computation
  *
  * To start we use task.run(onSuccess, onError, onCancel) to effectively
@@ -40,7 +40,7 @@ const sumErr = delay(1000, 10).then(x =>
  */
 sumErr.log("sumErr");
 
-/** If any atsk's step is cancelled, the whole task is cancelled
+/** If any task's step is cancelled, the whole task is cancelled
  * (with step's cancel reason).
  *
  * Note here we're cancelling from inside using the Task.cancel(reason) method
@@ -60,7 +60,7 @@ sumCancel.log("sumCancel");
 
 /**
  * let's use generators using Task.do
- * Inside the generator, you can yield Task instance
+ * Inside the generator, you can yield Task instances
  */
 const sumCancelGen = Task.do(function*() {
   const x = yield delay(1000, 10);
@@ -70,13 +70,14 @@ const sumCancelGen = Task.do(function*() {
 });
 
 /**
- * remainder, until no we're not executing anything
- * this the call that kicks off everything
+ * remainder, until now we're not executing anything yet
+ * this is the call that kicks off everything (or task.run)
  */
 sumCancelGen.log("*sumCancel");
 
 /**
- * let's see hpw do we cancel from the outside
+ * let's see how do we cancel from the outside
+ *
  * First we define our task
  */
 const sumCancelGen2 = Task.do(function*() {
