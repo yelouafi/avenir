@@ -1,5 +1,5 @@
 const Future = require("./Future");
-const Task = require("./task");
+const Task = require("./Task");
 
 exports.Future = Future;
 exports.Task = Task;
@@ -14,5 +14,5 @@ const delayF = exports.delayF = function delay(ms, v) {
 };
 
 exports.delay = function delay(ms, val) {
-  return new Task(() => delayF(ms, v))
+  return new Task(() => delayF(ms, val))
 }
