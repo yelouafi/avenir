@@ -4,7 +4,7 @@ const Task = require("./task");
 exports.Future = Future;
 exports.Task = Task;
 
-exports.delay = function delay(ms, v) {
+const delayF = exports.delayF = function delay(ms, v) {
   return new Future(res => {
     const tid = setTimeout(() => res(v), ms);
     return () => {
@@ -12,3 +12,7 @@ exports.delay = function delay(ms, v) {
     };
   });
 };
+
+exports.delay = function delay(ms, val) {
+  return new Task(() => delayF(ms, v))
+}
