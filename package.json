@@ -1,0 +1,33 @@
+{
+  "name": "lazybox",
+  "version": "1.0.0",
+  "description": "Lightweight async library based on lazy futures Edit",
+  "main": "src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yelouafi/avenir.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yelouafi/avenir/issues"
+  },
+  "keywords": [
+    "javascript",
+    "async",
+    "task",
+    "future",
+    "promise"
+  ],
+  "author": "Yassine ELOUAFI <yelouafi@gmail.com>",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "faucet": "0.0.1",
+    "tape": "^4.6.3"
+  },
+  "scripts": {
+    "test": "tape \"test/**/*.js\" | faucet",
+    "fmt": "prettier --write \"src/**/*.js\" \"test/**/*.js\""
+  }
+}
