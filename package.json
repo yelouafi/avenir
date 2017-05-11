@@ -28,6 +28,6 @@
   },
   "scripts": {
     "test": "tape \"test/**/*.js\" | faucet",
-    "fmt": "prettier --write \"src/**/*.js\" \"test/**/*.js\""
+    "fmt": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"examples/**/*.js\""
   }
 }

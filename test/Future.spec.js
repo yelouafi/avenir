@@ -29,7 +29,6 @@ test("Future.cancel", assert => {
   assert.end();
 });
 
-
 test("Future executor.resolve", assert => {
   let resolve;
   const f = new Future(res => {

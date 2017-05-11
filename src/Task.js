@@ -31,9 +31,9 @@ class Task {
     assertFunc(onError);
     assertFunc(onCancel);
 
-    const fut = this.fork()
+    const fut = this.fork();
     fut.subscribe(onSuccess, onError, onCancel);
-    return fut
+    return fut;
   }
 
   static empty() {
@@ -135,10 +135,10 @@ class Task {
 
   log(prefix) {
     return this.run(
-      v => console.log(prefix, ': resolved with ', v),
-      e => console.error(prefix, ': rejected with ', e),
-      r => console.log(prefix, ': cancelled with ', r)
-    )
+      v => console.log(prefix, ": resolved with ", v),
+      e => console.error(prefix, ": rejected with ", e),
+      r => console.log(prefix, ": cancelled with ", r)
+    );
   }
 
   static do(gf) {
@@ -155,11 +155,11 @@ class Task {
           return value.fork().then(
             v => {
               //console.log('next', a)
-              return next(v)
+              return next(v);
             },
             e => {
               //console.log('next err', a)
-              return next(e, true)
+              return next(e, true);
             },
             r => {
               g.return(r);
