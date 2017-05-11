@@ -104,7 +104,7 @@ class Task {
   static race(cs) {
     cs.forEach(assertTask);
 
-    return cs.reduce(Task.race2, Task.empty);
+    return cs.reduce(Task.race2, EMPTY_TASK);
   }
 
   static all(cs) {
@@ -123,7 +123,7 @@ class Task {
     assertFunc(p);
 
     return Task.race(
-      cs.map(c => c.then(v => p(v).then(b => (b ? Task.of(v) : Task.empty))))
+      cs.map(c => c.then(v => p(v).then(b => (b ? Task.of(v) : EMPTY_TASK))))
     );
   }
 
