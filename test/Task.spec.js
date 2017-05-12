@@ -467,3 +467,46 @@ test("Task.race downstream cancellation", assert => {
 
   assert.end();
 });
+
+test("Task.join", assert => {
+  let d = Future.defer();
+
+  let f = Task.join(d.future).fork();
+  assert.equal(f.status, PENDING);
+  d.resolve("val");
+  assert.equal(f.status, RESOLVED);
+  assert.equal(f.value, "val");
+
+  f = Task.join(d.future).fork();
+  assert.equal(f.status, RESOLVED);
+  assert.equal(f.value, "val");
+
+  d = Future.defer();
+  f = Task.join(d.future).fork();
+  d.reject("err");
+  assert.equal(f.status, REJECTED);
+  assert.equal(f.value, "err");
+
+  f = Task.join(d.future).fork();
+  assert.equal(f.status, REJECTED);
+  assert.equal(f.value, "err");
+
+  d = Future.defer();
+  f = Task.join(d.future).fork();
+  d.cancel("reason");
+  assert.equal(f.status, CANCELLED);
+  assert.equal(f.value, "reason");
+
+  f = Task.join(d.future).fork();
+  assert.equal(f.status, CANCELLED);
+  assert.equal(f.value, "reason");
+
+  d = Future.defer();
+  f = Task.join(d.future).fork();
+  f.cancel("fork reason");
+  assert.equal(f.status, CANCELLED);
+  assert.equal(f.value, "fork reason");
+  assert.equal(d.future.status, PENDING);
+
+  assert.end();
+});
