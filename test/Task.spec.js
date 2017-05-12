@@ -29,6 +29,163 @@ test("Task.cancel", assert => {
   assert.end();
 });
 
+test("Task.then resolve -> resolve/reject/cancel", assert => {
+  const fail = () => assert.fail("should not call handler");
+  let d = Future.defer();
+  let t = new Task(() => d.future);
+
+  let ds = [null, Future.defer(), Future.defer(), Future.defer()];
+  let thenResolve = _ => new Task(() => ds[1].future);
+  let thenReject = _ => new Task(() => ds[2].future);
+  let thenCancel = _ => new Task(() => ds[3].future);
+
+  let f0 = t.then(undefined, fail, fail).fork();
+  let f1 = t.then(thenResolve, fail, fail).fork();
+  let f2 = t.then(thenReject, fail, fail).fork();
+  let f3 = t.then(thenCancel, fail, fail).fork();
+
+  assert.equal(f0.status, Future.PENDING);
+  assert.equal(f1.status, Future.PENDING);
+  assert.equal(f2.status, Future.PENDING);
+  assert.equal(f3.status, Future.PENDING);
+
+  d.resolve("val");
+  assert.equal(f0.status, Future.RESOLVED);
+  assert.equal(f0.value, "val");
+
+  ds[1].resolve("res-val");
+  assert.equal(f1.status, Future.RESOLVED);
+  assert.equal(f1.value, "res-val");
+
+  ds[2].reject("rej-val");
+  assert.equal(f2.status, Future.REJECTED);
+  assert.equal(f2.value, "rej-val");
+
+  ds[3].cancel("can-val");
+  assert.equal(f3.status, Future.CANCELLED);
+  assert.equal(f3.value, "can-val");
+
+  assert.end();
+});
+
+test("Task.then reject -> resolve/reject/cancel", assert => {
+  const fail = () => assert.fail("should not call handler");
+  let d = Future.defer();
+  let t = new Task(() => d.future);
+
+  let ds = [null, Future.defer(), Future.defer(), Future.defer()];
+  let thenResolve = _ => new Task(() => ds[1].future);
+  let thenReject = _ => new Task(() => ds[2].future);
+  let thenCancel = _ => new Task(() => ds[3].future);
+
+  let f0 = t.then(fail, undefined, fail).fork();
+  let f1 = t.then(fail, thenResolve, fail).fork();
+  let f2 = t.then(fail, thenReject, fail).fork();
+  let f3 = t.then(fail, thenCancel, fail).fork();
+
+  assert.equal(f0.status, Future.PENDING);
+  assert.equal(f1.status, Future.PENDING);
+  assert.equal(f2.status, Future.PENDING);
+  assert.equal(f3.status, Future.PENDING);
+
+  d.reject("err");
+  assert.equal(f0.status, Future.REJECTED);
+  assert.equal(f0.value, "err");
+
+  ds[1].resolve("res-err");
+  assert.equal(f1.status, Future.RESOLVED);
+  assert.equal(f1.value, "res-err");
+
+  ds[2].reject("rej-err");
+  assert.equal(f2.status, Future.REJECTED);
+  assert.equal(f2.value, "rej-err");
+
+  ds[3].cancel("can-err");
+  assert.equal(f3.status, Future.CANCELLED);
+  assert.equal(f3.value, "can-err");
+
+  assert.end();
+});
+
+test("Task.then cancel -> resolve/reject/cancel", assert => {
+  const fail = () => assert.fail("should not call handler");
+  let d = Future.defer();
+  let t = new Task(() => d.future);
+
+  let ds = [null, Future.defer(), Future.defer(), Future.defer()];
+  let thenResolve = _ => new Task(() => ds[1].future);
+  let thenReject = _ => new Task(() => ds[2].future);
+  let thenCancel = _ => new Task(() => ds[3].future);
+
+  let f0 = t.then(fail, fail, undefined).fork();
+  let f1 = t.then(fail, fail, thenResolve).fork();
+  let f2 = t.then(fail, fail, thenReject).fork();
+  let f3 = t.then(fail, fail, thenCancel).fork();
+
+  assert.equal(f0.status, Future.PENDING);
+  assert.equal(f1.status, Future.PENDING);
+  assert.equal(f2.status, Future.PENDING);
+  assert.equal(f3.status, Future.PENDING);
+
+  d.cancel("reason");
+  assert.equal(f0.status, Future.CANCELLED);
+  assert.equal(f0.value, "reason");
+
+  ds[1].resolve("res-reason");
+  assert.equal(f1.status, Future.RESOLVED);
+  assert.equal(f1.value, "res-reason");
+
+  ds[2].reject("rej-reason");
+  assert.equal(f2.status, Future.REJECTED);
+  assert.equal(f2.value, "rej-reason");
+
+  ds[3].cancel("can-reason");
+  assert.equal(f3.status, Future.CANCELLED);
+  assert.equal(f3.value, "can-reason");
+
+  assert.end();
+});
+
+test("Task.then upstream cancellation", assert => {
+  const fail = () => assert.fail("should not call handler");
+
+  let t = Task.resolve("val");
+
+  let t0 = t.then(_ => Task.from(() => {}), fail);
+  let t1 = t0.then(fail, fail);
+  let t2 = t1.then(fail, fail);
+
+  let cancelReason;
+  let f = t2.run(fail, fail, reason => (cancelReason = reason));
+  f.cancel("reason");
+
+  assert.equal(f.status, Future.CANCELLED);
+  assert.equal(f.value, "reason");
+  assert.equal(cancelReason, "reason");
+
+  assert.end();
+});
+
+test("Task.then downstream cancellation", assert => {
+  const fail = () => assert.fail("should not call handler");
+  let d = Future.defer();
+  let t = new Task(() => d.future);
+
+  let t0 = t.then(fail, fail);
+  let t1 = t0.then(fail, fail);
+  let t2 = t1.then(fail, fail);
+
+  let cancelReason;
+  let f = t2.run(fail, fail, reason => (cancelReason = reason));
+  d.future.cancel("reason");
+
+  assert.equal(f.status, Future.CANCELLED);
+  assert.equal(f.value, "reason");
+  assert.equal(cancelReason, "reason");
+
+  assert.end();
+});
+
 test("Task.orElse", assert => {
   let t1, t2, f, d1, d2;
 
