@@ -1,5 +1,5 @@
 const Future = require("./Future");
-const { assert, assertFunc, append, noop, ident, raise } = require("./utils");
+const { assert, assertFunc, append, noop, raise } = require("./utils");
 
 const assertTask = arg => assert(arg instanceof Task, "argument is not a Task");
 
@@ -134,6 +134,7 @@ class Task {
   }
 
   log(prefix) {
+    /* eslint-disable no-console */
     return this.run(
       v => console.log(prefix, ": resolved with ", v),
       e => console.error(prefix, ": rejected with ", e),

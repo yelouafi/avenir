@@ -2,7 +2,6 @@ const { ERR_BAD_ARG } = require("./constants");
 
 const nodeEnv = typeof process !== "undefined" && process.env.NODE_ENV;
 const isDev = nodeEnv === "development";
-const isTest = nodeEnv === "test";
 
 const isFunc = (exports.isFunc = x => typeof x === "function");
 exports.isGen = x => x && isFunc(x.next) && isFunc(x.throw) && isFunc(x.return);
@@ -34,14 +33,17 @@ logger.enableInfos = () => (logLevel = LOG_INFOS);
 logger.enableWarnings = () => (logLevel = LOG_WARNINGS);
 
 logger.info = function logInfo(message) {
+  /* eslint-disable no-console */
   if (logLevel >= LOG_INFOS) console.info(message);
 };
 
 logger.warn = function logWarning(message) {
+  /* eslint-disable no-console */
   if (logLevel >= LOG_WARNINGS) console.warn(message);
 };
 
 logger.error = function logError(err) {
+  /* eslint-disable no-console */
   if (logLevel >= LOG_ERRORS) {
     console.error(err && err.message ? err.message : err);
   }
@@ -55,6 +57,6 @@ const assert = (exports.assert = (cond, msg) => {
   }
 });
 
-exports.assertFunc = (arg, defVal) => {
+exports.assertFunc = arg => {
   assert(isFunc(arg), ERR_BAD_ARG);
 };

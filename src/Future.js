@@ -1,5 +1,4 @@
 const { assert, assertFunc, noop, append } = require("./utils");
-const { E_FUN_ARG } = require("./constants");
 
 const fxor = fut => {
   let ok;
@@ -194,7 +193,7 @@ class Future {
     }
 
     return new Future((res, rej, can) => {
-      function tryResolve(v) {
+      function tryResolve() {
         if (f1._status === RESOLVED && f2._status === RESOLVED) {
           res(f(f1._value, f2._value));
         }
