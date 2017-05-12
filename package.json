@@ -19,15 +19,28 @@
     "promise"
   ],
   "author": "Yassine ELOUAFI <yelouafi@gmail.com>",
-  "license": "MIT",
   "dependencies": {},
   "devDependencies": {
     "babel-cli": "^6.24.1",
+    "eslint": "^3.19.0",
     "faucet": "0.0.1",
+    "husky": "^0.13.3",
+    "lint-staged": "^3.4.1",
     "tape": "^4.6.3"
   },
   "scripts": {
+    "precommit": "lint-staged",
+    "lint-src": "eslint src",
+    "lint-test": "eslint test",
     "test": "tape \"test/**/*.js\" | faucet",
+    "check": "npm run lint-src && npm run lint-test && npm run test",
     "fmt": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"examples/**/*.js\""
+  },
+  "lint-staged": {
+    "*.js": [
+      "check",
+      "prettier --write",
+      "git add"
+    ]
   }
 }
