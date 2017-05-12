@@ -9,7 +9,9 @@ const fxor = fut => {
         return f(a);
       }
       if (msg) {
-        throw new TypeError(msg + " " + fut._status + " " + fut._value);
+        throw new TypeError(
+          msg + ". Status: " + fut._status + ", value :" + fut._value
+        );
       }
     };
   };
