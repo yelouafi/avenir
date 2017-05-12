@@ -66,13 +66,15 @@ class Future {
     assertFunc(onCancel);
 
     if (this._status === PENDING) {
-      const j = {
+      const sub = {
         onSuccess,
         onError,
         onCancel
       };
-      this._joiners.add(j);
-      return () => this._joiners.delete(j);
+      this._joiners.add(sub);
+      return function disposeSubF() {
+        this._joiners && this._joiners.delete(sub);
+      };
     } else {
       this._notify(onSuccess, onError, onCancel);
       return noop;

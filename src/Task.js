@@ -185,6 +185,21 @@ class Task {
   }
 
   /**
+   * Creates a Task that will be complete with the same outcome as the provided
+   * Future.
+   *
+   * Note that cancelling the execution of the returned task will not cancel
+   * the original Future.
+   *
+   * @oaram {Future} future
+   *
+   * @returns Task
+   */
+  static join(future) {
+    return new Task(() => future.fork());
+  }
+
+  /**
     Returns a Task that does nothing. An empty task doesn't have an outcome.
 
     In particular an empty task has the following properties (≅ means the 2 tasks
