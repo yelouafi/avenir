@@ -72,14 +72,22 @@ class Task {
     });
   }
 
-  then(f = Task.resolve, fe = Task.reject) {
-    assertFunc(f);
-    assertFunc(fe);
+  then(f, fe, fc) {
+    f && assertFunc(f);
+    fe && assertFunc(fe);
+    fc && assertFunc(fc);
 
+    const handler = k => v => {
+      const result = k(v);
+      if (result instanceof Task) return result.fork();
+      else return result;
+    };
+
+    if (f) f = handler(f);
+    if (fe) fe = handler(fe);
+    if (fc) fc = handler(fc);
     if (this === EMPTY_TASK) return EMPTY_TASK;
-    return new Task(() =>
-      this.fork().then(v => f(v).fork(), e => fe(e).fork())
-    );
+    return new Task(() => this.fork().then(f, fe, fc));
   }
 
   static lift2(f) {
