@@ -1,5 +1,5 @@
-const Future = require("./Future");
 const Task = require("./Task");
+const Future = require("./Future");
 
 exports.Future = Future;
 exports.Task = Task;

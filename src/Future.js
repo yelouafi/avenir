@@ -166,22 +166,45 @@ class Future {
     return this._value;
   }
 
-  static of(a) {
-    return new Future(resolve => resolve(a));
+  /**
+   * Creates a Future that is resolved with the provided value
+   *
+   * @param {*} value
+   *
+   * @returns Future
+   */
+  static of(value) {
+    return new Future(resolve => resolve(value));
   }
 
+  /** Same as {@link Future.of} */
   static resolve(a) {
     return Future.of(a);
   }
 
-  static reject(a) {
-    return new Future((_, reject) => reject(a));
+  /**
+   * Creates a Future that is rejected with the provided error
+   *
+   * @param {*} error
+   *
+   * @returns Future
+   */
+  static reject(error) {
+    return new Future((_, reject) => reject(error));
   }
 
-  static cancel(a) {
-    return new Future((_, __, cancel) => cancel(a));
+  /**
+   * Creates a Future that is cancelled with the provided reason
+   *
+   * @param {*} reason
+   *
+   * @returns Future
+   */
+  static cancel(reason) {
+    return new Future((_, __, cancel) => cancel(reason));
   }
 
+  /** Creates a Future that never completes */
   static empty() {
     return ZERO;
   }
@@ -292,6 +315,6 @@ class Future {
 }
 
 const appendF = Future.lift2(append);
-const ZERO = Future.cancel("ZERO");
+const ZERO = new Future(() => {});
 
 module.exports = Future;

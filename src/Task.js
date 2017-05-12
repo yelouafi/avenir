@@ -7,10 +7,12 @@ const assertTask = arg => assert(arg instanceof Task, "argument is not a Task");
 /** @class */
 class Task {
   /**
-   * @param {Function} fork - A function which returns a {@link Future}
+   * Creates a Task from a function that returns a Future.
+   *
+   * @param {Function} getFuture - A function which returns a {@link Future}
    */
-  constructor(fork) {
-    this.fork = fork;
+  constructor(getFuture) {
+    this.fork = getFuture;
   }
 
   /**
