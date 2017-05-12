@@ -1,7 +1,6 @@
 const test = require("tape");
 const Future = require("../src/Future");
-const { logger, append } = require("../src/utils");
-const { E_FUN_ARG } = require("../src/constants");
+const { logger } = require("../src/utils");
 
 logger.disable();
 
@@ -448,7 +447,7 @@ test("Future.orElse (reject)", assert => {
   assert.end();
 });
 
-test("Future.orElse -> downstream cancellation", assert => {
+test("Future.orElse -> upstream cancellation", assert => {
   let d1 = Future.defer();
   let d2 = Future.defer();
 
@@ -468,7 +467,7 @@ test("Future.orElse -> downstream cancellation", assert => {
   assert.end();
 });
 
-test("Future.orElse -> upstream cancellation", assert => {
+test("Future.orElse -> downstream cancellation", assert => {
   let d1 = Future.defer();
   let d2 = Future.defer();
 
@@ -675,7 +674,7 @@ test("Future.all -> reject", assert => {
   assert.end();
 });
 
-test("Future.all root cancellation", assert => {
+test("Future.all downstream cancellation", assert => {
   let ds = [Future.defer(), Future.defer(), Future.defer()];
 
   let f = Future.all(ds.map(d => d.future));
@@ -689,7 +688,7 @@ test("Future.all root cancellation", assert => {
   assert.end();
 });
 
-test("Future.all leaf cancellation", assert => {
+test("Future.all upstream cancellation", assert => {
   let ds = [Future.defer(), Future.defer(), Future.defer()];
 
   let f = Future.all(ds.map(d => d.future));
@@ -735,7 +734,7 @@ test("Future.race -> reject", assert => {
   assert.end();
 });
 
-test("Future.race root cancellation", assert => {
+test("Future.race upstream cancellation", assert => {
   let ds = [Future.defer(), Future.defer(), Future.defer()];
 
   let f = Future.race(ds.map(d => d.future));
@@ -752,7 +751,7 @@ test("Future.race root cancellation", assert => {
   assert.end();
 });
 
-test("Future.race leaf cancellation", assert => {
+test("Future.race downstream cancellation", assert => {
   let ds = [Future.defer(), Future.defer(), Future.defer()];
 
   let f = Future.race(ds.map(d => d.future));

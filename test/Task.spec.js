@@ -1,7 +1,9 @@
 const test = require("tape");
 const Future = require("../src/Future");
 const Task = require("../src/Task");
-const { noop, logger, append } = require("../src/utils");
+const { noop, logger } = require("../src/utils");
+
+logger.disable();
 
 test("Task.resolve", assert => {
   const f = Task.resolve("val").fork();
@@ -182,6 +184,126 @@ test("Task.zipw", assert => {
   assert.equal(f.status, Future.REJECTED);
   assert.equal(f.value, "err");
   assert.equal(d2, null);
+
+  assert.end();
+});
+
+test("Tasl.all", assert => {
+  let ds = [Future.defer(), Future.defer(), Future.defer()];
+  let ts = ds.map(d => new Task(() => d.future));
+  let f = Task.all(ts).fork();
+
+  ds.forEach((d, i) => d.resolve(i));
+  assert.equal(f.status, Future.RESOLVED);
+  assert.deepEqual(f.value, [0, 1, 2]);
+  assert.end();
+});
+
+test("Task.all -> reject", assert => {
+  let ds = [Future.defer(), Future.defer(), Future.defer()];
+  let ts = ds.map(d => new Task(() => d.future));
+  let f = Task.all(ts).fork();
+
+  ds[0].resolve(1);
+  ds[1].reject("err");
+
+  assert.equal(f.status, Future.REJECTED);
+  assert.equal(f.value, "err");
+  assert.equal(ds[2].future.status, Future.CANCELLED);
+  assert.end();
+});
+
+test("Task.all downstream cancellation", assert => {
+  let ds = [Future.defer(), Future.defer(), Future.defer()];
+  let ts = ds.map(d => new Task(() => d.future));
+  let f = Task.all(ts).fork();
+
+  ds[0].resolve(0);
+  ds[1].future.cancel("reason");
+
+  assert.equal(f.status, Future.CANCELLED);
+  assert.equal(f.value, "reason");
+  assert.equal(ds[2].future.status, Future.CANCELLED);
+  assert.end();
+});
+
+test("Task.all upstream cancellation", assert => {
+  let ds = [Future.defer(), Future.defer(), Future.defer()];
+  let ts = ds.map(d => new Task(() => d.future));
+  let f = Task.all(ts).fork();
+
+  f.cancel("reason");
+
+  assert.equal(f.status, Future.CANCELLED);
+  assert.equal(f.value, "reason");
+
+  ds.forEach(d => {
+    assert.equal(d.future.status, Future.CANCELLED);
+    assert.equal(d.future.value, "reason");
+  });
+
+  assert.end();
+});
+
+test("Task.race -> resolve", assert => {
+  let ds = [Future.defer(), Future.defer(), Future.defer()];
+  let ts = ds.map(d => new Task(() => d.future));
+  let f = Task.race(ts).fork();
+
+  ds[1].resolve(1);
+  assert.equal(f.status, Future.RESOLVED);
+  assert.equal(f.value, 1);
+
+  assert.equal(ds[0].future.status, Future.CANCELLED);
+  assert.equal(ds[2].future.status, Future.CANCELLED);
+  assert.end();
+});
+
+test("Task.race -> reject", assert => {
+  let ds = [Future.defer(), Future.defer(), Future.defer()];
+  let ts = ds.map(d => new Task(() => d.future));
+  let f = Task.race(ts).fork();
+
+  ds[1].reject("err");
+
+  assert.equal(f.status, Future.REJECTED);
+  assert.equal(f.value, "err");
+  assert.equal(ds[0].future.status, Future.CANCELLED);
+  assert.equal(ds[2].future.status, Future.CANCELLED);
+  assert.end();
+});
+
+test("Task.race upstream cancellation", assert => {
+  let ds = [Future.defer(), Future.defer(), Future.defer()];
+  let ts = ds.map(d => new Task(() => d.future));
+  let f = Task.race(ts).fork();
+
+  f.cancel("reason");
+
+  assert.equal(f.status, Future.CANCELLED);
+  assert.equal(f.value, "reason");
+
+  ds.forEach(d => {
+    assert.equal(d.future.status, Future.CANCELLED);
+    assert.equal(d.future.value, "reason");
+  });
+  assert.end();
+});
+
+test("Task.race downstream cancellation", assert => {
+  let ds = [Future.defer(), Future.defer(), Future.defer()];
+  let ts = ds.map(d => new Task(() => d.future));
+  let f = Task.race(ts).fork();
+
+  ds[1].future.cancel("reason1");
+  assert.equal(f.status, Future.PENDING);
+
+  ds[0].future.cancel("reason0");
+  assert.equal(f.status, Future.PENDING);
+
+  ds[2].future.cancel("reason2");
+  assert.equal(f.status, Future.CANCELLED);
+  assert.equal(f.value, "reason2");
 
   assert.end();
 });
