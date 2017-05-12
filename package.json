@@ -1,5 +1,5 @@
 {
-  "name": "lazybox",
+  "name": "avenir",
   "version": "1.0.0",
   "description": "Lightweight async library based on lazy futures Edit",
   "main": "src/index.js",
@@ -30,10 +30,9 @@
   },
   "scripts": {
     "precommit": "lint-staged",
-    "lint-src": "eslint src",
-    "lint-test": "eslint test",
+    "lint": "eslint src test",
     "test": "tape \"test/**/*.js\" | faucet",
-    "check": "npm run lint-src && npm run lint-test && npm run test",
+    "check": "npm run lint && npm run test",
     "fmt": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"examples/**/*.js\""
   },
   "lint-staged": {
