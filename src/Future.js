@@ -42,9 +42,9 @@ class Future {
     this._status = PENDING;
 
     const once = fxor(this);
-    const onResolve = v => this._force(RESOLVED, v);
-    const onReject = e => this._force(REJECTED, e);
-    const onCancel = r => this.cancel(r);
+    const onResolve = value => this._force(RESOLVED, value);
+    const onReject = error => this._force(REJECTED, error);
+    const onCancel = reason => this._force(CANCELLED, reason);
 
     this._dispose = executor(once(onResolve), once(onReject), once(onCancel));
   }
@@ -60,7 +60,7 @@ class Future {
    *
    * @returns {Function} a function that can be used to cancel the subscription.
   */
-  subscribe(onSuccess, onError = noop, onCancel = noop) {
+  subscribe(onSuccess = noop, onError = noop, onCancel = noop) {
     assertFunc(onSuccess);
     assertFunc(onError);
     assertFunc(onCancel);
@@ -72,7 +72,7 @@ class Future {
         onCancel
       };
       this._joiners.add(sub);
-      return function disposeSubF() {
+      return () => {
         this._joiners && this._joiners.delete(sub);
       };
     } else {
@@ -88,7 +88,9 @@ class Future {
    * Cancelling this Future will not cancel the original Future.
    */
   fork() {
-    return new Future((k, ke, kc) => this.subscribe(k, ke, kc));
+    return new Future((resolve, reject, cancel) =>
+      this.subscribe(resolve, reject, cancel)
+    );
   }
 
   /**
@@ -106,27 +108,30 @@ class Future {
     this._force(CANCELLED, reason);
   }
 
-  then(f, fe, fc) {
-    f && assertFunc(f);
-    fe && assertFunc(fe);
-    fc && assertFunc(fc);
+  then(onResolve, onReject, onCancel) {
+    onResolve && assertFunc(onResolve);
+    onReject && assertFunc(onReject);
+    onCancel && assertFunc(onCancel);
 
-    return new Future((res, rej, can) => {
-      let curF = this;
+    return new Future((resolve, reject, cancel) => {
+      let unsubscribe1, unsubscribe2;
+
       const handler = k => v => {
-        curF = k(v);
-        if (curF instanceof Future) curF.subscribe(res, rej, can);
-        else res(curF);
+        let fut = k(v);
+        if (fut instanceof Future)
+          unsubscribe2 = fut.subscribe(resolve, reject, cancel);
+        else resolve(fut);
       };
 
-      this.subscribe(
-        f ? handler(f) : res,
-        fe ? handler(fe) : rej,
-        fc ? handler(fc) : can
+      unsubscribe1 = this.subscribe(
+        onResolve ? handler(onResolve) : resolve,
+        onReject ? handler(onReject) : reject,
+        onCancel ? handler(onCancel) : cancel
       );
 
-      function dispose(reason) {
-        curF.cancel(reason);
+      function dispose() {
+        unsubscribe1 && unsubscribe1();
+        unsubscribe2 && unsubscribe2();
       }
       return dispose;
     });
@@ -135,26 +140,38 @@ class Future {
   orElse(f2) {
     assertFut(f2);
 
-    if (this._status === CANCELLED) return f2;
-    if (f2._status === CANCELLED) return this;
+    const f1 = this;
 
-    return new Future((res, rej, can) => {
-      const handler = (fut, k) => x => {
-        fut.cancel("orElse");
-        k(x);
-      };
+    if (f1._status === RESOLVED || f1._status === REJECTED) return f1;
+    if (f1._status === CANCELLED || f2._status !== PENDING) return f2;
 
-      const cancelHandler = fut => r => {
-        if (fut.status === CANCELLED) can(r);
-      };
+    return new Future((resolve, reject, cancel) => {
+      function onResolve(v) {
+        dispose();
+        resolve(v);
+      }
 
-      this.subscribe(handler(f2, res), handler(f2, rej), cancelHandler(f2));
-      f2.subscribe(handler(this, res), handler(this, rej), cancelHandler(this));
+      function onReject(e) {
+        dispose();
+        reject(e);
+      }
 
-      return reason => {
-        this.cancel(reason);
-        f2.cancel(reason);
-      };
+      function onCancel(r) {
+        if (f1._status === CANCELLED && f2._status === CANCELLED) {
+          cancel(r);
+          dispose();
+        }
+      }
+
+      let unsubscribe1 = f1.subscribe(onResolve, onReject, onCancel);
+      let unsubscribe2 = f2.subscribe(onResolve, onReject, onCancel);
+
+      function dispose() {
+        unsubscribe1 && unsubscribe1();
+        unsubscribe2 && unsubscribe2();
+      }
+
+      return dispose;
     });
   }
 
@@ -217,37 +234,45 @@ class Future {
     if (f1._status === RESOLVED && f2._status === RESOLVED) {
       return Future.resolve(f(f1._value, f2._value));
     }
+    if (f1._status === REJECTED || f1._status === CANCELLED) {
+      return f1;
+    }
+    if (f2._status === REJECTED || f2._status === CANCELLED) {
+      return f2;
+    }
 
-    return new Future((res, rej, can) => {
-      function tryResolve() {
+    return new Future((resolve, reject, cancel) => {
+      function onResolve() {
         if (f1._status === RESOLVED && f2._status === RESOLVED) {
-          res(f(f1._value, f2._value));
+          resolve(f(f1._value, f2._value));
         }
       }
 
-      const abort = fut => e => {
-        rej(e);
-        if (fut._status === PENDING) {
-          fut.cancel("zipw");
-        }
-      };
-
-      function dispose(reason) {
-        can(reason);
-        f1.cancel(reason);
-        f2.cancel(reason);
+      function onReject(e) {
+        reject(e);
+        dispose();
       }
 
-      f1.subscribe(tryResolve, abort(f2), dispose);
-      f2.subscribe(tryResolve, abort(f1), dispose);
+      function onCancel(r) {
+        cancel(r);
+        dispose();
+      }
+
+      function dispose() {
+        unsubscribe1 && unsubscribe1();
+        unsubscribe2 && unsubscribe2();
+      }
+
+      let unsubscribe1 = f1.subscribe(onResolve, onReject, onCancel);
+      let unsubscribe2 = f2.subscribe(onResolve, onReject, onCancel);
 
       return dispose;
     });
   }
 
-  static all(fs) {
-    fs.forEach(assertFut);
-    return fs.reduce(appendF, Future.resolve([]));
+  static all(futures) {
+    futures.forEach(assertFut);
+    return futures.reduce(appendF, Future.resolve([]));
   }
 
   static race2(f1, f2) {
@@ -257,9 +282,10 @@ class Future {
     return f1.orElse(f2);
   }
 
-  static race(fs) {
-    fs.forEach(assertFut);
-    return fs.reduce(Future.race2, Future.empty());
+  static race(futures) {
+    assert(futures && futures.length, "argument must be a non empty array");
+    futures.forEach(assertFut);
+    return futures.reduce(Future.race2);
   }
 
   static lift2(f) {
@@ -281,16 +307,16 @@ class Future {
     };
   }
 
-  _notify(k, ke, kc) {
+  _notify(onResolve, onReject, onCancel) {
     const status = this._status;
     const value = this._value;
 
     if (status === RESOLVED) {
-      k(value);
+      onResolve(value);
     } else if (status === REJECTED) {
-      ke(value);
+      onReject(value);
     } else if (status === CANCELLED) {
-      kc(value);
+      onCancel(value);
     }
   }
 

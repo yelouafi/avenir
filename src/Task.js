@@ -62,7 +62,15 @@ class Task {
     return new Task(() => {
       const f1 = this.fork();
       if (f1.status !== PENDING) return f1;
-      return f1.orElse(task.fork());
+      const f2 = task.fork();
+      const resultF = f1.orElse(f2);
+      resultF.subscribe(cancel, cancel, r => cancel(null, r));
+      return resultF;
+
+      function cancel(_, reason) {
+        f1.cancel(reason);
+        f2.cancel(reason);
+      }
     });
   }
 
@@ -96,17 +104,33 @@ class Task {
     onError && assertFunc(onError);
     onCancel && assertFunc(onCancel);
 
-    const handler = k => v => {
-      const result = k(v);
-      if (result instanceof Task) return result.fork();
-      else return result;
-    };
-
-    if (onSuccess) onSuccess = handler(onSuccess);
-    if (onError) onError = handler(onError);
-    if (onCancel) onCancel = handler(onCancel);
     if (this === EMPTY_TASK) return EMPTY_TASK;
-    return new Task(() => this.fork().then(onSuccess, onError, onCancel));
+
+    return new Task(() => {
+      let fut1, fut2;
+
+      const handler = k => v => {
+        const result = k(v);
+        if (result instanceof Task) {
+          fut2 = result.fork();
+          return fut2;
+        } else return result;
+      };
+
+      if (onSuccess) onSuccess = handler(onSuccess);
+      if (onError) onError = handler(onError);
+      if (onCancel) onCancel = handler(onCancel);
+
+      fut1 = this.fork();
+      const resultF = fut1.then(onSuccess, onError, onCancel);
+      resultF.subscribe(undefined, cancel, r => cancel(null, r));
+      return resultF;
+
+      function cancel(_, reason) {
+        fut1.cancel(reason);
+        fut2 && fut2.cancel(reason);
+      }
+    });
   }
 
   /**
@@ -266,7 +290,15 @@ class Task {
     return new Task(() => {
       const f1 = task1.fork();
       if (f1.status === CANCELLED || f1.status === REJECTED) return f1;
-      return Future.zipw(f, f1, task2.fork());
+      const f2 = task2.fork();
+      const resultF = Future.zipw(f, f1, f2);
+      resultF.subscribe(cancel, cancel, r => cancel(null, r));
+      return resultF;
+
+      function cancel(_, reason) {
+        f1.cancel(reason);
+        f2.cancel(reason);
+      }
     });
   }
 

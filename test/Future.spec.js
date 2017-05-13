@@ -67,112 +67,39 @@ test("Future executor.cancel", assert => {
   assert.end();
 });
 
-test("Future cancel -> resolve", assert => {
-  let resolve;
-  const f = new Future(res => {
-    resolve = res;
-  });
+test("Future cancel -> resolve/reject/cancel", assert => {
+  const d = Future.defer();
+  const f = d.future;
   assert.equal(f.status, PENDING);
-  f.cancel("reason");
-  resolve("val");
+  d.cancel("reason");
+  d.resolve("val");
+  d.reject("err");
   assert.equal(f.status, CANCELLED);
   assert.equal(f.value, "reason");
   assert.end();
 });
 
-test("Future cancel -> reject", assert => {
-  let reject;
-  const f = new Future((_, rej) => {
-    reject = rej;
-  });
-  f.cancel("reason");
-  reject("err");
-  assert.equal(f.status, CANCELLED);
-  assert.equal(f.value, "reason");
-  assert.end();
-});
-
-test("Future cancel -> cancel", assert => {
-  const f = new Future(() => {});
+test("Future resolve -> resolve/reject/cancel", assert => {
+  const d = Future.defer();
+  const f = d.future;
   assert.equal(f.status, PENDING);
-  f.cancel("reason");
-  f.cancel("another reason");
-  assert.equal(f.status, CANCELLED);
-  assert.equal(f.value, "reason");
-  assert.end();
-});
-
-test("Future resolve -> cancel", assert => {
-  let resolve;
-  const f = new Future(res => {
-    resolve = res;
-  });
-  resolve("val");
-  f.cancel("reason");
+  d.resolve("val");
+  d.cancel("reason");
+  d.reject("err");
   assert.equal(f.status, RESOLVED);
   assert.equal(f.value, "val");
   assert.end();
 });
 
-test("Future resolve -> reject", assert => {
-  let resolve, reject;
-  const f = new Future((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  resolve("val");
-  reject("err");
-  assert.equal(f.status, RESOLVED);
-  assert.equal(f.value, "val");
-  assert.end();
-});
-
-test("Future resolve -> resolve", assert => {
-  let resolve;
-  const f = new Future(res => {
-    resolve = res;
-  });
-  resolve("val1");
-  resolve("val2");
-  assert.equal(f.status, RESOLVED);
-  assert.equal(f.value, "val1");
-  assert.end();
-});
-
-test("Future reject -> cancel", assert => {
-  let reject;
-  const f = new Future((_, rej) => {
-    reject = rej;
-  });
-  reject("err");
-  f.cancel("reason");
+test("Future reject -> resolve/reject/cancel", assert => {
+  const d = Future.defer();
+  const f = d.future;
+  assert.equal(f.status, PENDING);
+  d.reject("err");
+  d.resolve("val");
+  d.cancel("reason");
   assert.equal(f.status, REJECTED);
   assert.equal(f.value, "err");
-  assert.end();
-});
-
-test("Future reject -> resolve", assert => {
-  let resolve, reject;
-  const f = new Future((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  reject("err");
-  resolve("val");
-  assert.equal(f.status, REJECTED);
-  assert.equal(f.value, "err");
-  assert.end();
-});
-
-test("Future reject -> reject", assert => {
-  let reject;
-  const f = new Future((_, rej) => {
-    reject = rej;
-  });
-  reject("err1");
-  reject("err2");
-  assert.equal(f.status, REJECTED);
-  assert.equal(f.value, "err1");
   assert.end();
 });
 
@@ -207,10 +134,8 @@ test("Future.subscribe -> cancel", assert => {
 });
 
 test("Future subscribe (resolve)", assert => {
-  let resolve;
-  const f = new Future(res => {
-    resolve = res;
-  });
+  const d = Future.defer();
+  const f = d.future;
   let rval;
   f.subscribe(
     v => (rval = v),
@@ -218,7 +143,7 @@ test("Future subscribe (resolve)", assert => {
     _ => assert.fail("should call onSuccess handler")
   );
   assert.equal(rval, undefined);
-  resolve("val");
+  d.resolve("val");
   assert.equal(rval, "val");
   let rval1;
   f.subscribe(
@@ -258,14 +183,14 @@ test("Future subscribe (cancel) ", assert => {
 
 test("Future.then resolve -> resolve/reject/cancel", assert => {
   const fail = () => assert.fail("should not call handler");
-  let resolve;
-  let f = new Future(res => {
-    resolve = () => res("val");
-  });
+  const d = Future.defer();
+  const f = d.future;
 
   let f0 = f.then(undefined, fail, fail);
   assert.equal(f0.status, PENDING);
-  resolve();
+
+  d.resolve("val");
+
   assert.equal(f0.status, RESOLVED);
   assert.equal(f0.value, "val");
 
@@ -306,10 +231,8 @@ test("Future.then resolve -> resolve/reject/cancel", assert => {
 
 test("Future.then reject -> resolve/reject/cancel", assert => {
   const fail = () => assert.fail("should not call handler");
-  let reject;
-  let f = new Future((_, rej) => {
-    reject = () => rej("err");
-  });
+  const d = Future.defer();
+  const f = d.future;
 
   let thenResolve = v => "res-" + v;
   let thenReject = v => Future.reject("err-" + v);
@@ -320,7 +243,7 @@ test("Future.then reject -> resolve/reject/cancel", assert => {
   let f2 = f.then(fail, thenReject, fail);
   let f3 = f.then(fail, thenCancel, fail);
 
-  reject();
+  d.reject("err");
 
   assert.equal(f0.status, REJECTED);
   assert.equal(f0.value, "err");
@@ -373,10 +296,14 @@ test("Future.then downstream cancellation", assert => {
   let f = new Future(() => {});
 
   let f0 = f.then(fail, fail);
-  let f1 = f0.then(v => v, fail);
-  let f2 = f1.then(fail, v => v);
+  let f1 = f0.then(fail, fail);
+  let f2 = f1.then(fail, fail, _ => "val");
+  let f3 = f2.then(undefined, fail);
 
   f.cancel("reason");
+
+  assert.equal(f.status, CANCELLED);
+  assert.equal(f.value, "reason");
 
   assert.equal(f0.status, CANCELLED);
   assert.equal(f0.value, "reason");
@@ -384,36 +311,32 @@ test("Future.then downstream cancellation", assert => {
   assert.equal(f1.status, CANCELLED);
   assert.equal(f1.value, "reason");
 
-  assert.equal(f2.status, CANCELLED);
-  assert.equal(f2.value, "reason");
+  assert.equal(f2.status, RESOLVED);
+  assert.equal(f2.value, "val");
+
+  assert.equal(f3.status, RESOLVED);
+  assert.equal(f3.value, "val");
 
   assert.end();
 });
 
 test("Future.then upstream cancellation", assert => {
   const fail = () => assert.fail("should not call handler");
-  let cancelReason;
 
-  let f = new Future(() => {
-    return reason => (cancelReason = "root-" + reason);
-  });
+  let f = new Future(() => {});
 
-  let f0 = f.then(fail, fail);
-  let f1 = f0.then(v => v, fail);
-  let f2 = f1.then(fail, v => v);
+  let f0 = f.then(fail, fail, fail);
+  let f1 = f0.then(fail, fail, fail);
+  let f2 = f1.then(fail, fail, fail);
 
   f2.cancel("reason");
 
-  assert.equal(f1.status, CANCELLED);
-  assert.equal(f1.value, "reason");
+  assert.equal(f2.status, CANCELLED);
+  assert.equal(f2.value, "reason");
 
-  assert.equal(f0.status, CANCELLED);
-  assert.equal(f0.value, "reason");
-
-  assert.equal(f.status, CANCELLED);
-  assert.equal(f.value, "reason");
-
-  assert.equal(cancelReason, "root-reason");
+  assert.equal(f.status, PENDING);
+  assert.equal(f0.status, PENDING);
+  assert.equal(f1.status, PENDING);
 
   assert.end();
 });
@@ -428,8 +351,7 @@ test("Future.orElse (resolve)", assert => {
   assert.equal(f.status, RESOLVED);
   assert.equal(f.value, "v1");
 
-  assert.equal(d2.future.status, CANCELLED);
-  assert.equal(d2.future.value, "orElse");
+  assert.equal(d2.future.status, PENDING);
 
   assert.end();
 });
@@ -444,8 +366,7 @@ test("Future.orElse (reject)", assert => {
   assert.equal(f.status, REJECTED);
   assert.equal(f.value, "err2");
 
-  assert.equal(d1.future.status, CANCELLED);
-  assert.equal(d1.future.value, "orElse");
+  assert.equal(d1.future.status, PENDING);
 
   assert.end();
 });
@@ -461,11 +382,8 @@ test("Future.orElse -> upstream cancellation", assert => {
   assert.equal(f.status, CANCELLED);
   assert.equal(f.value, "reason");
 
-  assert.equal(d1.future.status, CANCELLED);
-  assert.equal(d1.future.value, "reason");
-
-  assert.equal(d2.future.status, CANCELLED);
-  assert.equal(d2.future.value, "reason");
+  assert.equal(d1.future.status, PENDING);
+  assert.equal(d2.future.status, PENDING);
 
   assert.end();
 });
@@ -616,7 +534,7 @@ test("Future.zipw", assert => {
   assert.equal(f.status, CANCELLED);
   assert.equal(f.value, "reason");
 
-  // deferred reject + deferred _ = deferred reject (+ cancel 2nd)
+  // deferred reject + deferred _ = deferred reject
   d1 = Future.defer();
   d2 = Future.defer();
   f = Future.zipw(fn, d1.future, d2.future);
@@ -624,9 +542,9 @@ test("Future.zipw", assert => {
   d1.reject("err");
   assert.equal(f.status, REJECTED);
   assert.equal(f.value, "err");
-  assert.equal(d2.future.status, CANCELLED);
+  assert.equal(d2.future.status, PENDING);
 
-  // deferred cancel + deferred _ = deferred cancel (+ cancel 2nd)
+  // deferred cancel + deferred _ = deferred cancel
   d1 = Future.defer();
   d2 = Future.defer();
   f = Future.zipw(fn, d1.future, d2.future);
@@ -634,7 +552,7 @@ test("Future.zipw", assert => {
   d1.cancel("reason");
   assert.equal(f.status, CANCELLED);
   assert.equal(f.value, "reason");
-  assert.equal(d2.future.status, CANCELLED);
+  assert.equal(d2.future.status, PENDING);
 
   // deferred + deferred (manual cancel) = deferred cancel
   d1 = Future.defer();
@@ -644,10 +562,8 @@ test("Future.zipw", assert => {
   f.cancel("reason");
   assert.equal(f.status, CANCELLED);
   assert.equal(f.value, "reason");
-  assert.equal(d1.future.status, CANCELLED);
-  assert.equal(d1.future.value, "reason");
-  assert.equal(d2.future.status, CANCELLED);
-  assert.equal(d2.future.value, "reason");
+  assert.equal(d1.future.status, PENDING);
+  assert.equal(d2.future.status, PENDING);
 
   assert.end();
 });
@@ -673,7 +589,7 @@ test("Future.all -> reject", assert => {
 
   assert.equal(f.status, REJECTED);
   assert.equal(f.value, "err");
-  assert.equal(ds[2].future.status, CANCELLED);
+  assert.equal(ds[2].future.status, PENDING);
   assert.end();
 });
 
@@ -687,7 +603,7 @@ test("Future.all downstream cancellation", assert => {
 
   assert.equal(f.status, CANCELLED);
   assert.equal(f.value, "reason");
-  assert.equal(ds[2].future.status, CANCELLED);
+  assert.equal(ds[2].future.status, PENDING);
   assert.end();
 });
 
@@ -702,8 +618,7 @@ test("Future.all upstream cancellation", assert => {
   assert.equal(f.value, "reason");
 
   ds.forEach(d => {
-    assert.equal(d.future.status, CANCELLED);
-    assert.equal(d.future.value, "reason");
+    assert.equal(d.future.status, PENDING);
   });
 
   assert.end();
@@ -718,8 +633,8 @@ test("Future.race -> resolve", assert => {
   assert.equal(f.status, RESOLVED);
   assert.equal(f.value, 1);
 
-  assert.equal(ds[0].future.status, CANCELLED);
-  assert.equal(ds[2].future.status, CANCELLED);
+  assert.equal(ds[0].future.status, PENDING);
+  assert.equal(ds[2].future.status, PENDING);
   assert.end();
 });
 
@@ -732,8 +647,8 @@ test("Future.race -> reject", assert => {
 
   assert.equal(f.status, REJECTED);
   assert.equal(f.value, "err");
-  assert.equal(ds[0].future.status, CANCELLED);
-  assert.equal(ds[2].future.status, CANCELLED);
+  assert.equal(ds[0].future.status, PENDING);
+  assert.equal(ds[2].future.status, PENDING);
   assert.end();
 });
 
@@ -748,8 +663,7 @@ test("Future.race upstream cancellation", assert => {
   assert.equal(f.value, "reason");
 
   ds.forEach(d => {
-    assert.equal(d.future.status, CANCELLED);
-    assert.equal(d.future.value, "reason");
+    assert.equal(d.future.status, PENDING);
   });
   assert.end();
 });
