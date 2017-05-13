@@ -88,7 +88,7 @@ const fetchTask = Task.do(function*() {
 
 **Parameters**
 
--   `getFuture`  
+-   `getFuture`
 
 ### constructor
 
@@ -114,7 +114,7 @@ step and will skip all subsequent steps.
     not provided an Exception will be thrown (optional, default `raise`)
 -   `onCancel` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)?** callback invoked if the Task was cancelled (optional, default `noop`)
 
-Returns **[Future](#future)** 
+Returns **[Future](#future)**
 
 ### orElse
 
@@ -130,7 +130,7 @@ Run a race between the 2 proivded Tasks. Returns a new Task that will
 
 -   `task` **[Task](#task)** a Task that this task will be raced against
 
-Returns **[Task](#task)** 
+Returns **[Task](#task)**
 
 ### then
 
@@ -149,6 +149,9 @@ to the type of its outcome (success, error or cancellation). Each callback
 is optional. In case the corresponding callback was not provided, the final
 outcome will be the same as the first Task.
 
+Cancelling the result Task will cancel the current step in the chain and
+skip the execution of the Tasks in the subsequent step(s).
+
 This method returns a new Task that will complete with the same outcome
 as the second Task returned from the appropriate callback.
 
@@ -158,7 +161,7 @@ as the second Task returned from the appropriate callback.
 -   `onError` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)?** callback invoked if the Task has aborted. If
 -   `onCancel` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)?** callback invoked if the Task was cancelled
 
-Returns **[Task](#task)** 
+Returns **[Task](#task)**
 
 ### log
 
@@ -171,7 +174,7 @@ This method returns a [Future](#future) that represent the outcome of the Task.
 
 -   `prefix` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** used to prefix logged messages
 
-Returns **[Future](#future)** 
+Returns **[Future](#future)**
 
 ### of
 
@@ -179,9 +182,9 @@ Returns a Task that will always resolve with the provided value
 
 **Parameters**
 
--   `value` **any** 
+-   `value` **any**
 
-Returns **[Task](#task)** 
+Returns **[Task](#task)**
 
 ### resolve
 
@@ -189,7 +192,7 @@ Same as [Task.of](#taskof) \*
 
 **Parameters**
 
--   `value`  
+-   `value`
 
 ### reject
 
@@ -197,9 +200,9 @@ Returns a Task that will always reject with the provided value
 
 **Parameters**
 
--   `error` **any** 
+-   `error` **any**
 
-Returns **[Task](#task)** 
+Returns **[Task](#task)**
 
 ### cancel
 
@@ -207,9 +210,9 @@ Returns a Task that will always be cancelled with the provided value
 
 **Parameters**
 
--   `reason` **any** 
+-   `reason` **any**
 
-Returns **[Task](#task)** 
+Returns **[Task](#task)**
 
 ### from
 
@@ -224,7 +227,7 @@ Task's executors are invoked synchrously (immediately).
 
 **Parameters**
 
--   `executor` **[executor](#executor)** 
+-   `executor` **[executor](#executor)**
 
 Returns **any** Task
 
@@ -238,7 +241,7 @@ the original Future.
 
 **Parameters**
 
--   `future`  
+-   `future`
 
 Returns **any** Task
 
@@ -264,8 +267,8 @@ Same as [Task#orElse](#taskorelse) task1.orElse(task2) \*
 
 **Parameters**
 
--   `task1`  
--   `task2`  
+-   `task1`
+-   `task2`
 
 ### race
 
@@ -273,9 +276,16 @@ Runs a race between all the provided Tasks. This is the same as
 
 task1.orElse(task2)......orElse(taskN)
 
+The Task will resolve/reject with the first resolved/rejected Task. In either
+case the other Tasks are automatically cancelled. If all the Tasks
+are cancelled, the result Task will be cancelled with the last
+cancellation's result.
+
+Cancelling the result Task will cancel all other Tasks.
+
 **Parameters**
 
--   `tasks` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;[Task](#task)>** 
+-   `tasks` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;[Task](#task)>**
 
 Returns **any** Task
 
@@ -287,28 +297,55 @@ If one of the input Tasks is rejected/cancelled, then the result Task
 will be rejected/cancelled a well. The other Task will also be automatically
 cancelled.
 
+Cancelling the result Task will cancel the 2 input Tasks (if still pending)
+
 **Parameters**
 
 -   `f` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)** Used to combine the resolved values of the 2 tasks
--   `task1`  
--   `task2`  
--   `Task` **task1** 
--   `Task` **task2** 
+-   `task1`
+-   `task2`
+-   `Task` **task1**
+-   `Task` **task2**
 
 Returns **any** Task
 
 ### all
 
 Returns a Task that will resolve with Array of all values if all input tasks
-are resolved. If an input Task is rejected/cancelled, the result Task will
-also be rejected/cancelled and all Tasks that are still pending will be
-automatically cancelled.
+are resolved. If any input Task is rejected/cancelled, the result Task will
+also be rejected/cancelled. In either case all Tasks that are still
+pending will be automatically cancelled.
+
+Cancelling the result Task will cancel all input Tasks (if pending)
 
 **Parameters**
 
--   `tasks` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;[Task](#task)>** 
+-   `tasks` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;[Task](#task)>**
 
 Returns **any** Task
+
+### traverse
+
+Transform the input values into Tasks using the provided function and
+returns that combines the values of all created Tasks using [Task.all](#taskall)
+
+**Parameters**
+
+-   `f` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)** A function that takes a value and returns a Task
+-   `values` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;any>** An array of values
+
+Returns **any** Task
+
+### detect
+
+Pass the input Tasks trough an async predicate (a function that returns a Task
+of a Boolean). The result Task will resolve with the first value that pass
+the async test.
+
+**Parameters**
+
+-   `p` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)** A function that takes a value and returnd Task of a Boolean
+-   `tasks` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;[Task](#task)>**
 
 ### apply
 
@@ -319,8 +356,8 @@ pending.
 
 **Parameters**
 
--   `f` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)** 
--   `tasks` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;[Task](#task)>** 
+-   `f` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)**
+-   `tasks` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;[Task](#task)>**
 -   `ctx` **[object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)** If provided, will be used as a `this` for the function
 
 ### lift
@@ -330,7 +367,7 @@ Tasks. This is the same as `Task.apply.bind(undefined, f)`
 
 **Parameters**
 
--   `f`  
+-   `f`
 
 ## executor
 
@@ -350,7 +387,7 @@ Type: [Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Referen
 
 **Parameters**
 
--   `executor`  
+-   `executor`
 
 ### constructor
 
@@ -361,7 +398,7 @@ Future's executors are invoked synchrously (immediately).
 
 **Parameters**
 
--   `executor` **[executor](#executor)** 
+-   `executor` **[executor](#executor)**
 
 Returns **any** Future
 
@@ -373,7 +410,7 @@ Returns a function that can be used to cancel the subscription.
 
 **Parameters**
 
--   `onSuccess` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)?** callback invoked if the Future has succeded
+-   `onSuccess` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)?** callback invoked if the Future has succeded (optional, default `noop`)
 -   `onError` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)?** callback invoked if the Future has aborted. If (optional, default `noop`)
 -   `onCancel` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)?** callback invoked if the Future was cancelled (optional, default `noop`)
 
@@ -396,7 +433,51 @@ Cancellation will be notified to all subscribers that have provided an
 
 **Parameters**
 
--   `reason` **any** 
+-   `reason` **any**
+
+### then
+
+Chain a callback that will be invoked when this Future completes. The
+appropriate callback will be invoked (if provided) depending on the type
+of the completion (success, error or cancellation).
+
+If the invoked callback returns a Future then the result Future will adopt
+its outcome. Returning a non Future value is the same as returning
+`Future.resolve(value)`.
+
+If the appropriate callback is omitted then the result Future will adopt
+the same outcome of this Future.
+
+Cancelling the result Future will not cancel this Future or the one
+eventually returned from a callback. That is, the cancellation will only
+affect the outcome of the result Future. If you want to cancel the root
+Futures as well, you must combine your sequence in a Task using
+{@Task#then}
+
+**Parameters**
+
+-   `onResolve` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)**
+-   `onReject` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)**
+-   `onCancel` **[Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function)**
+
+Returns **any** @Future
+
+### orElse
+
+Runs a race between 2 Futures. The result Future will resolve/reject with
+the first resolved/rejected Future. Otherwise it will be cancelled with the
+latest cancelled Future.
+
+Cancelling the result Future will not cancel the 2 input futures. That is,
+the cancellation will only affect the outcome of the result Future. If you
+want to cancel also the input futures you should combine then in a single
+[Task](#task) using {@Task#orElse}
+
+**Parameters**
+
+-   `f2` **[Future](#future)**
+
+Returns **any** Future
 
 ### of
 
@@ -404,7 +485,7 @@ Creates a Future that is resolved with the provided value
 
 **Parameters**
 
--   `value` **any** 
+-   `value` **any**
 
 Returns **any** Future
 
@@ -414,7 +495,7 @@ Same as [Future.of](#futureof)
 
 **Parameters**
 
--   `a`  
+-   `a`
 
 ### reject
 
@@ -422,7 +503,7 @@ Creates a Future that is rejected with the provided error
 
 **Parameters**
 
--   `error` **any** 
+-   `error` **any**
 
 Returns **any** Future
 
@@ -432,10 +513,41 @@ Creates a Future that is cancelled with the provided reason
 
 **Parameters**
 
--   `reason` **any** 
+-   `reason` **any**
 
 Returns **any** Future
 
 ### empty
 
 Creates a Future that never completes
+
+### all
+
+Returns a Future that will resolve with an Array containing the values of
+all resolved Tasks. Othewise it will be rejected/cancelled with the first
+rejected/cancelled input Future.
+
+Cancelling the result Future will not cancel the input Futures. Cancellation
+will only affect the outcome of the result Future. If you want to cancel
+also the input Futures you must combine them in a single [Task](#task) using
+[Task.all](#taskall)
+
+**Parameters**
+
+-   `futures` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)&lt;[Future](#future)>**
+
+Returns **any** Future
+
+### race
+
+Runs a race between the input Futures. Returns a Future that will
+resolve/reject with the first resolved/rejected Future. Otherwise, it will be
+cancelled with the latest cancelled Future.
+
+Cancellation of the result Future will only affect its own outcome. If you
+want to cancel also the input Futures you must combine the futures in a
+single Task using [Task.race](#taskrace)
+
+**Parameters**
+
+-   `futures`
