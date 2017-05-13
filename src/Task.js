@@ -4,7 +4,6 @@ const { Status: { PENDING, REJECTED, CANCELLED } } = require("./constants");
 
 const assertTask = arg => assert(arg instanceof Task, "argument is not a Task");
 
-/** @class */
 class Task {
   /**
    * Creates a Task from a function that returns a Future.
@@ -205,7 +204,7 @@ class Task {
    *
    * @param {executor} executor
    *
-   * @returns Task
+   * @returns {Task}
    */
   static from(executor) {
     assertFunc(executor);
@@ -222,7 +221,7 @@ class Task {
    *
    * @oaram {Future} future
    *
-   * @returns Task
+   * @returns {Task}
    */
   static join(future) {
     return new Task(() => future.fork());
@@ -241,13 +240,13 @@ class Task {
     Task.zipw(f, emptyTask, anotherTask)  ≅ emptyTask
     Task.zipw(f, anotherTask, emptyTask)  ≅ emptyTask
 
-    @returns Task
+    @returns {Task}
   **/
   static empty() {
     return EMPTY_TASK;
   }
 
-  /** Same as {@link Task#orElse} task1.orElse(task2) **/
+  /** Same as `task1.orElse(task2)` */
   static race2(task1, task2) {
     assertTask(task1);
     assertTask(task2);
@@ -258,7 +257,7 @@ class Task {
   /**
    * Runs a race between all the provided Tasks. This is the same as
    *
-   * task1.orElse(task2)......orElse(taskN)
+   * `task1.orElse(task2)......orElse(taskN)`
    *
    * The Task will resolve/reject with the first resolved/rejected Task. In either
    * case the other Tasks are automatically cancelled. If all the Tasks
@@ -269,7 +268,7 @@ class Task {
    *
    * @param {Task[]} tasks
    *
-   * @returns Task
+   * @returns {Task}
    */
   static race(tasks) {
     tasks.forEach(assertTask);
@@ -287,10 +286,10 @@ class Task {
    * Cancelling the result Task will cancel the 2 input Tasks (if still pending)
    *
    * @param {Function} f - Used to combine the resolved values of the 2 tasks
-   * @param {task1} Task
-   * @param {task2} Task
+   * @param {Task} task1
+   * @param {Task} task2
    *
-   * @returns Task
+   * @returns {Task}
    */
   static zipw(f, task1, task2) {
     assertFunc(f);
@@ -324,7 +323,7 @@ class Task {
    *
    * @param {Task[]} tasks
    *
-   * @returns Task
+   * @returns {Task}
    */
   static all(tasks) {
     tasks.forEach(assertTask);
@@ -337,9 +336,9 @@ class Task {
    * returns that combines the values of all created Tasks using {@link Task.all}
    *
    * @param {Function} f - A function that takes a value and returns a Task
-   * @param {*[]} values - An array of values
+   * @param {object[]} values - An array of values
    *
-   * @returns Task
+   * @returns {Task}
    */
   static traverse(f, values) {
     assertFunc(f);
@@ -392,6 +391,8 @@ class Task {
   /**
    * Transforms a function that acts on plain values to a function that acts on
    * Tasks. This is the same as `Task.apply.bind(undefined, f)`
+   *
+   * @params {Function} f
    */
   static lift(f) {
     assertFunc(f);

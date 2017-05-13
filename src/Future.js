@@ -23,7 +23,6 @@ function fxor(fut) {
 const assertFut = arg =>
   assert(arg instanceof Future, "argument is not a Future");
 
-/** @class */
 class Future {
   /**
    * Creates a Future that will get its outcome using the provided
@@ -33,7 +32,7 @@ class Future {
    *
    * @param {executor} executor
    *
-   * @returns Future
+   * @returns {Future}
    */
   constructor(executor) {
     assertFunc(executor);
@@ -124,7 +123,7 @@ class Future {
    * eventually returned from a callback. That is, the cancellation will only
    * affect the outcome of the result Future. If you want to cancel the root
    * Futures as well, you must combine your sequence in a Task using
-   * {@Task#then}
+   * {@link Task#then}
    *
    * @param {Function} onResolve
    * @param {Function} onReject
@@ -173,7 +172,7 @@ class Future {
    *
    * @param {Future} f2
    *
-   * @returns Future
+   * @returns {Future}
    */
   orElse(f2) {
     assertFut(f2);
@@ -226,7 +225,7 @@ class Future {
    *
    * @param {*} value
    *
-   * @returns Future
+   * @returns {Future}
    */
   static of(value) {
     return new Future(resolve => resolve(value));
@@ -242,7 +241,7 @@ class Future {
    *
    * @param {*} error
    *
-   * @returns Future
+   * @returns {Future}
    */
   static reject(error) {
     return new Future((_, reject) => reject(error));
@@ -253,7 +252,7 @@ class Future {
    *
    * @param {*} reason
    *
-   * @returns Future
+   * @returns {Future}
    */
   static cancel(reason) {
     return new Future((_, __, cancel) => cancel(reason));
@@ -320,7 +319,7 @@ class Future {
    *
    * @param {Future[]} futures
    *
-   * @returns Future
+   * @returns {Future}
    */
   static all(futures) {
     futures.forEach(assertFut);
