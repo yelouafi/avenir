@@ -108,6 +108,30 @@ class Future {
     this._force(CANCELLED, reason);
   }
 
+  /**
+   * Chain a callback that will be invoked when this Future completes. The
+   * appropriate callback will be invoked (if provided) depending on the type
+   * of the completion (success, error or cancellation).
+   *
+   * If the invoked callback returns a Future then the result Future will adopt
+   * its outcome. Returning a non Future value is the same as returning
+   * `Future.resolve(value)`.
+   *
+   * If the appropriate callback is omitted then the result Future will adopt
+   * the same outcome of this Future.
+   *
+   * Cancelling the result Future will not cancel this Future or the one
+   * eventually returned from a callback. That is, the cancellation will only
+   * affect the outcome of the result Future. If you want to cancel the root
+   * Futures as well, you must combine your sequence in a Task using
+   * {@Task#then}
+   *
+   * @param {Function} onResolve
+   * @param {Function} onReject
+   * @param {Function} onCancel
+   *
+   * @returns @Future
+   */
   then(onResolve, onReject, onCancel) {
     onResolve && assertFunc(onResolve);
     onReject && assertFunc(onReject);
@@ -137,6 +161,20 @@ class Future {
     });
   }
 
+  /**
+   * Runs a race between 2 Futures. The result Future will resolve/reject with
+   * the first resolved/rejected Future. Otherwise it will be cancelled with the
+   * latest cancelled Future.
+   *
+   * Cancelling the result Future will not cancel the 2 input futures. That is,
+   * the cancellation will only affect the outcome of the result Future. If you
+   * want to cancel also the input futures you should combine then in a single
+   * {@link Task} using {@Task#orElse}
+   *
+   * @param {Future} f2
+   *
+   * @returns Future
+   */
   orElse(f2) {
     assertFut(f2);
 
@@ -270,6 +308,20 @@ class Future {
     });
   }
 
+  /**
+   * Returns a Future that will resolve with an Array containing the values of
+   * all resolved Tasks. Othewise it will be rejected/cancelled with the first
+   * rejected/cancelled input Future.
+   *
+   * Cancelling the result Future will not cancel the input Futures. Cancellation
+   * will only affect the outcome of the result Future. If you want to cancel
+   * also the input Futures you must combine them in a single {@link Task} using
+   * {@link Task.all}
+   *
+   * @param {Future[]} futures
+   *
+   * @returns Future
+   */
   static all(futures) {
     futures.forEach(assertFut);
     return futures.reduce(appendF, Future.resolve([]));
@@ -282,6 +334,15 @@ class Future {
     return f1.orElse(f2);
   }
 
+  /**
+   * Runs a race between the input Futures. Returns a Future that will
+   * resolve/reject with the first resolved/rejected Future. Otherwise, it will be
+   * cancelled with the latest cancelled Future.
+   *
+   * Cancellation of the result Future will only affect its own outcome. If you
+   * want to cancel also the input Futures you must combine the futures in a
+   * single Task using {@link Task.race}
+   */
   static race(futures) {
     assert(futures && futures.length, "argument must be a non empty array");
     futures.forEach(assertFut);

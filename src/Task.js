@@ -90,6 +90,9 @@ class Task {
    * is optional. In case the corresponding callback was not provided, the final
    * outcome will be the same as the first Task.
    *
+   * Cancelling the result Task will cancel the current step in the chain and
+   * skip the execution of the Tasks in the subsequent step(s).
+   *
    * This method returns a new Task that will complete with the same outcome
    * as the second Task returned from the appropriate callback.
    *
@@ -257,6 +260,13 @@ class Task {
    *
    * task1.orElse(task2)......orElse(taskN)
    *
+   * The Task will resolve/reject with the first resolved/rejected Task. In either
+   * case the other Tasks are automatically cancelled. If all the Tasks
+   * are cancelled, the result Task will be cancelled with the last
+   * cancellation's result.
+   *
+   * Cancelling the result Task will cancel all other Tasks.
+   *
    * @param {Task[]} tasks
    *
    * @returns Task
@@ -273,6 +283,8 @@ class Task {
    * If one of the input Tasks is rejected/cancelled, then the result Task
    * will be rejected/cancelled a well. The other Task will also be automatically
    * cancelled.
+   *
+   * Cancelling the result Task will cancel the 2 input Tasks (if still pending)
    *
    * @param {Function} f - Used to combine the resolved values of the 2 tasks
    * @param {task1} Task
@@ -304,9 +316,11 @@ class Task {
 
   /**
    * Returns a Task that will resolve with Array of all values if all input tasks
-   * are resolved. If an input Task is rejected/cancelled, the result Task will
-   * also be rejected/cancelled and all Tasks that are still pending will be
-   * automatically cancelled.
+   * are resolved. If any input Task is rejected/cancelled, the result Task will
+   * also be rejected/cancelled. In either case all Tasks that are still
+   * pending will be automatically cancelled.
+   *
+   * Cancelling the result Task will cancel all input Tasks (if pending)
    *
    * @param {Task[]} tasks
    *
@@ -318,12 +332,31 @@ class Task {
     return tasks.reduce(appendT, Task.of([]));
   }
 
+  /**
+   * Transform the input values into Tasks using the provided function and
+   * returns that combines the values of all created Tasks using {@link Task.all}
+   *
+   * @param {Function} f - A function that takes a value and returns a Task
+   * @param {*[]} values - An array of values
+   *
+   * @returns Task
+   */
   static traverse(f, values) {
     assertFunc(f);
 
     return Task.all(values.then(f));
   }
 
+  /**
+   * Pass the input Tasks trough an async predicate (a function that returns a Task
+   * of a Boolean). The result Task will resolve with the first value that pass
+   * the async test.
+   *
+   * @param {Function} p - A function that takes a value and returnd Task of a Boolean
+   * @param {Task[]} tasks
+   *
+   * @retursn Task
+   */
   static detect(p, tasks) {
     assertFunc(p);
 
