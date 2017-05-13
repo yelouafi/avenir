@@ -82,4 +82,4 @@ const fetchTask = Task.do(function*() {
 
 # Documentation
 
-[API Docs]()
+[API Docs](https://yelouafi.github.io/avenir/)
