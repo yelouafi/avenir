@@ -25,7 +25,10 @@
     "eslint": "^3.19.0",
     "faucet": "0.0.1",
     "husky": "^0.13.3",
+    "jsdoc": "^3.4.3",
     "lint-staged": "^3.4.1",
+    "minami": "^1.2.3",
+    "rimraf": "^2.6.1",
     "tape": "^4.6.3"
   },
   "scripts": {
@@ -33,7 +36,7 @@
     "lint": "eslint src test",
     "test": "tape \"test/**/*.js\" | faucet",
     "check": "npm run lint && npm run test",
-    "fmt": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"examples/**/*.js\""
+    "gen-docs": "rimraf docs && jsdoc src --configure .jsdoc.json --verbose"
   },
   "lint-staged": {
     "*.js": [
