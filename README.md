@@ -139,7 +139,7 @@ So Tasks are just this and nothing more. The [Task](https://yelouafi.github.io/a
 abstraction provided by this library or by 
 [folktale's Data.Task](http://origamitower.github.io/folktale/en/folktale.data.task.html) 
 just wraps this lazy execution and makes it more composable by providing functions to
-describe the control glow (like `then`/`chain`, `all`, `race` ...)
+describe the control flow (like `then`/`chain`, `all`, `race` ...)
 
 In avenir, you can create a Task with a API similar to Promises using
 [Task.from](https://yelouafi.github.io/avenir/Task.html#.from). Note the executor
@@ -238,7 +238,7 @@ to resolve before continuing. If the login task was cancelled (either by invokin
 `loginFuture.cancel()` or by the loginTask itself if the user clicks on a CancelLogin
 button) then the fetchDataTask will be cancelled as well.
 
-Observe that if we cancel fetchDataTask for some other reason while we'reason
+Observe that if we cancel fetchDataTask for some other reason while we're
 still waiting for loginFuture
 
 ```js
