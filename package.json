@@ -1,7 +1,7 @@
 {
   "name": "avenir",
   "version": "1.0.0",
-  "description": "Lightweight async library based on lazy futures Edit",
+  "description": "Lightweight async library based on lazy futures (Tasks)",
   "main": "src/index.js",
   "repository": {
     "type": "git",
