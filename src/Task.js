@@ -441,10 +441,15 @@ module.exports = Task;
 /**
  * This function is used to execute the an action for a given {@link Task} or
  * {@link Future}, and then notifies the appropriate provided callbac (success,
- * error or cancellation)
+ * error or cancellation).
+ *
+ * If the executor returns a function, it will be invoked when the Task/Future
+ * is cancelled. This is useful to run cleanup code.
  *
  * @callback executor
  * @param {Function} resolve - Invoke this callback to resolve the Task/Future
  * @param {Function} reject - Invoke this callback to reject the Task/Future
  * @param {Function} cancel - Invoke this callback to cancel the Task/Future
+ *
+ * @returns {Function} a function that is invoked when the Task/Future is cancelled.
  */

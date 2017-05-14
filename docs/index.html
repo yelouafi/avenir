@@ -52,9 +52,32 @@
 <a href="https://github.com/folktale/data.task">folktale's Data.Task</a></p>
 <p>The library provides <code>Tasks</code> for writing asynchronous code with JavaScript in
 Node and the Browser.</p>
-<p>Unlike Promises, the standard async abstraction, Tasks are <em>lazy</em> and <em>cancellable</em>.</p>
-<p>Although the model follows Data.Task, avenir adopts some different
-<a href="comparison.md">design decision</a>.</p>
+<p>Unlike Promises, Tasks are <em>lazy</em> and <em>cancellable</em>.</p>
+<blockquote>
+<p>the following section is on how Tasks tries to solve some of the issues with former Task based TC39 proposal. 
+Points listed in a random order here. Needs rewrite.</p>
+</blockquote>
+<p>Basically avenir Task build on <a href="https://github.com/tc39/proposal-cancelable-promises/issues/2">proposal-cancelable-promises/issues/2</a>.
+But unlike the proposal which evolves in a highly constrained environment (backward compatibility, consensus ...). The
+library doesnt aim to be a compatible Promise implementation. Instead we start from scratch taking different design decisions
+and tradeoffs (mainly simplicity and ergonomics).</p>
+<p>In the following I use the term Promise to makes explanations simpler. But the library has its own Promise implementation called Future.</p>
+<ul>
+<li><p>Task is not a sublcass of Promise but wraps a lazy Promise chain for which it's the only owner. Thus it can describe an atomic operation and gives clearer meaning to cancellation. IMHO ref counting for handling cases like <a href="https://github.com/tc39/proposal-cancelable-promises/blob/19b48e28d768d84cff8c2b69f61f710376eb9394/Subclass%20Brainstorming.md#canceling-derived-tasks">this one</a> is not the best way (because a Promise is multicast and we can chain further operations <em>after</em> the refcount reaches 0).</p>
+</li>
+<li><p>Task executes/propagates synchronously hence no race conditions like <a href="https://github.com/tc39/proposal-cancelable-promises/issues/8">tc39/proposal-cancelable-promises/issues/8</a>. (reentrance issues due to synchronous execution/propagation are handled by spec. guards. It's way simpler to handle reentrance than correctly implement cancellation with async shcduling)</p>
+</li>
+<li><p>Task doesn't flatten nested Promises so clearer meaning of what to expect from  <a href="https://github.com/tc39/proposal-cancelable-promises/issues/8">tc39/proposal-cancelable-promises/issues/8</a> or also <a href="https://github.com/tc39/proposal-cancelable-promises/blob/19b48e28d768d84cff8c2b69f61f710376eb9394/Subclass%20Brainstorming.md#cancelation-vs-resolution">from this example</a>. A Promise is completed simply when it's not in PENDING state. Thus examples like this</p>
+</li>
+</ul>
+<pre class="prettyprint source lang-js"><code>const task = new Task(resolve => {
+  resolve(new Promise(() => {}));
+
+  return cancelAction;
+});
+task.cancel();</code></pre><p>are not legitimate because we can not call the <code>resolve</code> capability with another Promise (In fact we can but the inner
+Promise is passed to chained callbacks as a normal value).</p>
+<p>avenir Tasks differ also in a few point from folktale Data.Task. See <a href="comparison.md">comparisaon</a>.</p>
 <h2>Rationale</h2><p>Consider the following example using Promises</p>
 <pre class="prettyprint source lang-js"><code>var promiseA = someAsynFn()
 var promiseB = promiseA.then(...)</code></pre><p>Let's suppose that Promises were given builtin cancellation. And that we invoke
@@ -85,16 +108,32 @@ Another perspective is to view the operation as a <em>tree</em> with <code>promi
 with 2 branches whose leafs are <code>promiseB</code> and <code>promiseC</code>. So cancelling one branch
 should not affect the other branch (however cancelling the root or cancelling
 the <em>whole</em> tree should propagate to the branches as well).</p>
-<p>Now a not-so-dumb answer is that we should choose how to cancel depending on the
-situation. But the problem is precisely how do we infer this situation. Promises,
-by nature, denote only one step on the operation. A Promise, once created,
-lacks the <em>context</em> in which it is itself composed with other Promises to build
-a control flow. So we can not simply implement a <code>cancel</code> method in the Promise
-prototype because we do not have enough information to interpret the meaning of
-the cancellation.</p>
-<p>One possible solution is to extract out the cancellation capability into a first
+<p>A possible solution is to maintain some ref. couning in <code>promisA</code>. Each time we chain
+a <code>then</code> operation we increase the counter if <code>promiseA</code> and once the derived 
+promise is completed (whatever the outcome) we decrese the counter. If the counter
+reaches <code>0</code> then we cancel <code>promiseA</code> since all operations that depend on it
+have completed.</p>
+<p>But ref. couting can have subtle issues. For example what if <em>after</em> <code>promiseB</code> and
+and <code>promiseC</code> aer cancelled - cancelling <code>promiseA</code> in the way - we reattach another
+<code>then</code> operation in some other part of the code ? And I dont mention here issues 
+related to race conditions due to async scheduling of chained operations which makes
+maintaining the ref. counter error prone. Issues like <a href="https://github.com/tc39/proposal-cancelable-promises/issues/8">this one</a>
+is a simple illustration. And I'd expect more subtle issues to manifest in real world
+applications (I've myself experienced many of those issues when implementing <a href="https://github.com/redux-saga/redux-saga">redux-saga</a>
+and I couldn't get rid of them until I dropped async scheduling in sequenced 
+operations and made everything synchronous).</p>
+<p>So it's clear how we should propagate cancellation up depends on the
+situation. But the problem is precisely how do we infer this situation. A Promise, 
+once created, lacks the <em>whole context</em> in which it is itself composed with other 
+Promises to build a control flow. While we can maintain a reference to the parent
+promise from which the current promise was derived. We can not know how this
+parent promise is used elsewhere and all the other operations that has been or
+<strong>will be</strong> derived from it.
+ So we can not simply implement a <code>cancel</code> method in the Promise prototype because 
+we do not have enough information to interpret the meaning of the cancellation.</p>
+<p>Another solution is to extract out the cancellation capability into a first
 class value. For example we can create some token and then pass it down
-to all async operations that construct Promises. The createor of the token can
+to all async operations that construct Promises. The creator of the token can
 request the cancellation at any moment. The async operations that have
 received the token can then be notified of the cancellation. This is the
 solution that was planned to be implemented into the TC39 standard (but was
@@ -102,7 +141,8 @@ dropped because of lack of consensus).</p>
 <p>We can view the token based solution as an indirect way to describe chained
 steps as a whole unit. A created cancel token denote itself the whole operation
 and all async functions that receive the token are part of the unit.</p>
-<p>Another solution, which IMHO is simpler, more composable and ergonomic is by
+<p>Another solution, which IMHO is simpler, more composable and ergonomic is to
+make this <em>whole operation</em> - the big picture - itself as a first class value
 using <em>Tasks</em>.</p>
 <h3>Tasks are lazy Promises</h3><p>A Task can be thought of as a <em>lazy Promise</em>. For example, the following Promise</p>
 <pre class="prettyprint source lang-js"><code>const promiseA = new Promise((resolve, reject) = {
@@ -128,12 +168,11 @@ elsewhere in another sequence.</p>
 <p>However in the case of lazy Promises we do have this knowledge. Precisely because
 the operation has not started yet. And simply because we will start it ourselves
 as a whole operation.</p>
-<p>So Tasks are just this and nothing more. The [Task]
-(https://yelouafi.github.io/avenir/Task.html)
-abstraction provided by this library or by [folktale's Data.Task]
-(http://origamitower.github.io/folktale/en/folktale.data.task.html) just wraps
-this lazy execution and makes it more composable by providing functions to
-describe the control glow (like <code>then</code>/<code>chain</code>, <code>all</code>, <code>race</code> ...)</p>
+<p>So Tasks are just this and nothing more. The <a href="https://yelouafi.github.io/avenir/Task.html">Task</a>
+abstraction provided by this library or by 
+<a href="http://origamitower.github.io/folktale/en/folktale.data.task.html">folktale's Data.Task</a> 
+just wraps this lazy execution and makes it more composable by providing functions to
+describe the control flow (like <code>then</code>/<code>chain</code>, <code>all</code>, <code>race</code> ...)</p>
 <p>In avenir, you can create a Task with a API similar to Promises using
 <a href="https://yelouafi.github.io/avenir/Task.html#.from">Task.from</a>. Note the executor
 argument takes also a <code>cancel</code> callback. This can be invoked by the executor to
@@ -147,8 +186,7 @@ trigger cancellation from the source.</p>
 effect takes place at this moment yet. To effectively start a Task, you must
 invoke its <code>run</code> method</p>
 <pre class="prettyprint source lang-js"><code>// Execution starts from here
-myTask.run(onSuccess, onError, onCancel)</code></pre><h3>Tasks are Cancellable</h3><p>After a Task has been started, it can be cancelled using the returned [Future]
-(https://yelouafi.github.io/avenir/Future.html)</p>
+myTask.run(onSuccess, onError, onCancel)</code></pre><h3>Tasks are Cancellable</h3><p>After a Task has been started, it can be cancelled using the returned <a href="https://yelouafi.github.io/avenir/Future.html">Future</a></p>
 <pre class="prettyprint source lang-js"><code>// Execution starts from here
 const future = myTask.run(onSuccess, onError, onCancel)
 
@@ -190,7 +228,7 @@ const fetchDataTask = Task.do(function*() {
 to resolve before continuing. If the login task was cancelled (either by invoking
 <code>loginFuture.cancel()</code> or by the loginTask itself if the user clicks on a CancelLogin
 button) then the fetchDataTask will be cancelled as well.</p>
-<p>Observe that if we cancel fetchDataTask for some other reason while we'reason
+<p>Observe that if we cancel fetchDataTask for some other reason while we're
 still waiting for loginFuture</p>
 <pre class="prettyprint source lang-js"><code>const future = fetchDataTask.fork()
 
@@ -211,7 +249,7 @@ the result of loginFuture. The loginTask stays unaffected.</p>
 <br class="clear">
 
 <footer>
-    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun May 14 2017 03:14:41 GMT+0000 (UTC) using the Minami theme.
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun May 14 2017 13:57:05 GMT+0000 (UTC) using the Minami theme.
 </footer>
 
 <script>prettyPrint();</script>
