@@ -10,8 +10,8 @@ Node and the Browser.
 
 Unlike Promises, Tasks are _lazy_ and _cancellable_.
 
->> the following section is on how Tasks tries to solve some of the issues with former Task based TC39 proposal
->> Points listed in a random order here. Needs rewrite.
+> the following section is on how Tasks tries to solve some of the issues with former Task based TC39 proposal
+> Points listed in a random order here. Needs rewrite.
 
 Basically avenir Task build on [proposal-cancelable-promises/issues/2](https://github.com/tc39/proposal-cancelable-promises/issues/2).
 But unlike the proposal which evolves in a highly constrained environment (backward compatibility, consensus ...). The
