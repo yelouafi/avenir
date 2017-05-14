@@ -10,7 +10,7 @@ Node and the Browser.
 
 Unlike Promises, Tasks are _lazy_ and _cancellable_.
 
-> the following section is on how Tasks tries to solve some of the issues with former Task based TC39 proposal
+> the following section is on how Tasks tries to solve some of the issues with former Task based TC39 proposal. 
 > Points listed in a random order here. Needs rewrite.
 
 Basically avenir Task build on [proposal-cancelable-promises/issues/2](https://github.com/tc39/proposal-cancelable-promises/issues/2).
@@ -18,12 +18,13 @@ But unlike the proposal which evolves in a highly constrained environment (backw
 library doesnt aim to be a compatible Promise implementation. Instead we start from scratch taking different design decisions
 and tradeoffs (mainly sacrificing immutability for simplicity and ergonomics).
 
-- Task is not a sublcass of Promise/Future but wraps a lazy Promise/Future chain for which it's the only owner. Thus it can describe an atomic operation and gives clearer meaning to cancellation. IMHO ref counting for handling cases like [this one](https://github.com/tc39/proposal-cancelable-promises/blob/19b48e28d768d84cff8c2b69f61f710376eb9394/Subclass%20Brainstorming.md#canceling-derived-tasks) is not the best way (because a Promise is multicast we can chain further operations after the refcount reaches 0).
+In the following I use the term Promise to makes explanations simpler. But the library has its own Promise implementation called Future.
 
-- Task execute/propagate synchronously hence no race conditions like [tc39/proposal-cancelable-promises/issues/8](https://github.com/tc39/proposal-cancelable-promises/issues/8). Especially, cancellation propagates synchronously to
-avoid race conditions (reentrance issues due to synchronous execution/propagation are handled by spec. guards)
+- Task is not a sublcass of Promise but wraps a lazy Promise chain for which it's the only owner. Thus it can describe an atomic operation and gives clearer meaning to cancellation. IMHO ref counting for handling cases like [this one](https://github.com/tc39/proposal-cancelable-promises/blob/19b48e28d768d84cff8c2b69f61f710376eb9394/Subclass%20Brainstorming.md#canceling-derived-tasks) is not the best way (because a Promise is multicast and we can chain further operations *after* the refcount reaches 0).
 
-- Task doesn't flatten nested Promise/Future so clearer meaning of what to expect from  [tc39/proposal-cancelable-promises/issues/8](https://github.com/tc39/proposal-cancelable-promises/issues/8) or also [from this example](https://github.com/tc39/proposal-cancelable-promises/blob/19b48e28d768d84cff8c2b69f61f710376eb9394/Subclass%20Brainstorming.md#cancelation-vs-resolution). A promise is completed simply when it's not in PENDING state. Thus examples like this
+- Task executes/propagates synchronously hence no race conditions like [tc39/proposal-cancelable-promises/issues/8](https://github.com/tc39/proposal-cancelable-promises/issues/8). (reentrance issues due to synchronous execution/propagation are handled by spec. guards. It's way simpler to handle reentrance than correctly implement cancellation with async shcduling)
+
+- Task doesn't flatten nested Promises so clearer meaning of what to expect from  [tc39/proposal-cancelable-promises/issues/8](https://github.com/tc39/proposal-cancelable-promises/issues/8) or also [from this example](https://github.com/tc39/proposal-cancelable-promises/blob/19b48e28d768d84cff8c2b69f61f710376eb9394/Subclass%20Brainstorming.md#cancelation-vs-resolution). A Promise is completed simply when it's not in PENDING state. Thus examples like this
 
 ```js
 const task = new Task(resolve => {
