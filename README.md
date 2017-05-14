@@ -16,7 +16,7 @@ Unlike Promises, Tasks are _lazy_ and _cancellable_.
 Basically avenir Task build on [proposal-cancelable-promises/issues/2](https://github.com/tc39/proposal-cancelable-promises/issues/2).
 But unlike the proposal which evolves in a highly constrained environment (backward compatibility, consensus ...). The
 library doesnt aim to be a compatible Promise implementation. Instead we start from scratch taking different design decisions
-and tradeoffs (mainly sacrificing immutability for simplicity and ergonomics).
+and tradeoffs (mainly simplicity and ergonomics).
 
 In the following I use the term Promise to makes explanations simpler. But the library has its own Promise implementation called Future.
 
