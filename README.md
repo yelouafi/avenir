@@ -72,7 +72,7 @@ the cancellation.
 
 One possible solution is to extract out the cancellation capability into a first
 class value. For example we can create some token and then pass it down
-to all async operations that construct Promises. The createor of the token can
+to all async operations that construct Promises. The creator of the token can
 request the cancellation at any moment. The async operations that have
 received the token can then be notified of the cancellation. This is the
 solution that was planned to be implemented into the TC39 standard (but was
@@ -135,11 +135,10 @@ However in the case of lazy Promises we do have this knowledge. Precisely becaus
 the operation has not started yet. And simply because we will start it ourselves
 as a whole operation.
 
-So Tasks are just this and nothing more. The [Task]
-(https://yelouafi.github.io/avenir/Task.html)
-abstraction provided by this library or by [folktale's Data.Task]
-(http://origamitower.github.io/folktale/en/folktale.data.task.html) just wraps
-this lazy execution and makes it more composable by providing functions to
+So Tasks are just this and nothing more. The [Task](https://yelouafi.github.io/avenir/Task.html)
+abstraction provided by this library or by 
+[folktale's Data.Task](http://origamitower.github.io/folktale/en/folktale.data.task.html) 
+just wraps this lazy execution and makes it more composable by providing functions to
 describe the control glow (like `then`/`chain`, `all`, `race` ...)
 
 In avenir, you can create a Task with a API similar to Promises using
@@ -167,8 +166,7 @@ myTask.run(onSuccess, onError, onCancel)
 
 ### Tasks are Cancellable
 
-After a Task has been started, it can be cancelled using the returned [Future]
-(https://yelouafi.github.io/avenir/Future.html)
+After a Task has been started, it can be cancelled using the returned [Future](https://yelouafi.github.io/avenir/Future.html)
 
 ```js
 // Execution starts from here
