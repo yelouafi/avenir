@@ -6,10 +6,38 @@ Lightweight async library based on lazy Futures. Inspired by
 The library provides `Tasks` for writing asynchronous code with JavaScript in
 Node and the Browser.
 
-Unlike Promises, the standard async abstraction, Tasks are _lazy_ and _cancellable_.
 
-Although the model follows Data.Task, avenir adopts some different
-[design decision](comparison.md).
+
+Unlike Promises, Tasks are _lazy_ and _cancellable_.
+
+>> the following section is on how Tasks tries to solve some of the issues with former Task based TC39 proposal
+>> Points listed in a random order here. Needs rewrite.
+
+Basically avenir Task build on [proposal-cancelable-promises/issues/2](https://github.com/tc39/proposal-cancelable-promises/issues/2).
+But unlike the proposal which evolves in a highly constrained environment (backward compatibility, consensus ...). The
+library doesnt aim to be a compatible Promise implementation. Instead we start from scratch taking different design decisions
+and tradeoffs (mainly sacrificing immutability for simplicity and ergonomics).
+
+- Task is not a sublcass of Promise/Future but wraps a lazy Promise/Future chain for which it's the only owner. Thus it can describe an atomic operation and gives clearer meaning to cancellation. IMHO ref counting for handling cases like [this one](https://github.com/tc39/proposal-cancelable-promises/blob/19b48e28d768d84cff8c2b69f61f710376eb9394/Subclass%20Brainstorming.md#canceling-derived-tasks) is not the best way (because a Promise is multicast we can chain further operations after the refcount reaches 0).
+
+- Task execute/propagate synchronously hence no race conditions like [tc39/proposal-cancelable-promises/issues/8](https://github.com/tc39/proposal-cancelable-promises/issues/8). Especially, cancellation propagates synchronously to
+avoid race conditions (reentrance issues due to synchronous execution/propagation are handled by spec. guards)
+
+- Task doesn't flatten nested Promise/Future so clearer meaning of what to expect from  [tc39/proposal-cancelable-promises/issues/8](https://github.com/tc39/proposal-cancelable-promises/issues/8) or also [from this example](https://github.com/tc39/proposal-cancelable-promises/blob/19b48e28d768d84cff8c2b69f61f710376eb9394/Subclass%20Brainstorming.md#cancelation-vs-resolution). A promise is completed simply when it's not in PENDING state. Thus examples like this
+
+```js
+const task = new Task(resolve => {
+  resolve(new Promise(() => {}));
+
+  return cancelAction;
+});
+task.cancel();
+```
+
+are not legitimate because we can not call the `resolve` capability with another Promise. And Promises/Futures returned by
+then adopt the state of the Promise/Future returned by the `then` callback.
+
+avenir Tasks differ also in a few point from folktale Data.Task. See [comparisaon](comparison.md).
 
 ## Rationale
 
@@ -62,15 +90,33 @@ with 2 branches whose leafs are `promiseB` and `promiseC`. So cancelling one bra
 should not affect the other branch (however cancelling the root or cancelling
 the *whole* tree should propagate to the branches as well).
 
-Now a not-so-dumb answer is that we should choose how to cancel depending on the
-situation. But the problem is precisely how do we infer this situation. Promises,
-by nature, denote only one step on the operation. A Promise, once created,
-lacks the *context* in which it is itself composed with other Promises to build
-a control flow. So we can not simply implement a `cancel` method in the Promise
-prototype because we do not have enough information to interpret the meaning of
-the cancellation.
+A possible solution is to maintain some ref. couning in `promisA`. Each time we chain
+a `then` operation we increase the counter if `promiseA` and once the derived 
+promise is completed (whatever the outcome) we decrese the counter. If the counter
+reaches `0` then we cancel `promiseA` since all operations that depend on it
+have completed.
 
-One possible solution is to extract out the cancellation capability into a first
+But ref. couting can have subtle issues. For example what if *after* `promiseB` and
+and `promiseC` aer cancelled - cancelling `promiseA` in the way - we reattach another
+`then` operation in some other part of the code ? And I dont mention here issues 
+related to race conditions due to async scheduling of chained operations which makes
+maintaining the ref. counter error prone. Issues like [this one](https://github.com/tc39/proposal-cancelable-promises/issues/8)
+is a simple illustration. And I'd expect more subtle issues to manifest in real world
+applications (I've myself experienced many of those issues when implementing [redux-saga](https://github.com/redux-saga/redux-saga)
+and I couldn't get rid of them until I dropped async scheduling in sequenced 
+operations and made everything synchronous).
+
+So it's clear how we should propagate cancellation up depends on the
+situation. But the problem is precisely how do we infer this situation. A Promise, 
+once created, lacks the *whole context* in which it is itself composed with other 
+Promises to build a control flow. While we can maintain a reference to the parent
+promise from which the current promise was derived. We can not know how this
+parent promise is used elsewhere and all the other operations that has been or
+**will be** derived from it.
+ So we can not simply implement a `cancel` method in the Promise prototype because 
+we do not have enough information to interpret the meaning of the cancellation.
+
+Another solution is to extract out the cancellation capability into a first
 class value. For example we can create some token and then pass it down
 to all async operations that construct Promises. The creator of the token can
 request the cancellation at any moment. The async operations that have
@@ -82,7 +128,8 @@ We can view the token based solution as an indirect way to describe chained
 steps as a whole unit. A created cancel token denote itself the whole operation
 and all async functions that receive the token are part of the unit.
 
-Another solution, which IMHO is simpler, more composable and ergonomic is by
+Another solution, which IMHO is simpler, more composable and ergonomic is to
+make this *whole operation* - the big picture - itself as a first class value
 using *Tasks*.
 
 ### Tasks are lazy Promises
