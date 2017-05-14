@@ -35,8 +35,8 @@ const task = new Task(resolve => {
 task.cancel();
 ```
 
-are not legitimate because we can not call the `resolve` capability with another Promise. And Promises/Futures returned by
-then adopt the state of the Promise/Future returned by the `then` callback.
+are not legitimate because we can not call the `resolve` capability with another Promise (In fact we can but the inner
+Promise is passed to chained callbacks as a normal value).
 
 avenir Tasks differ also in a few point from folktale Data.Task. See [comparisaon](comparison.md).
 
