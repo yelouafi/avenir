@@ -48,61 +48,157 @@
 
 
     <section class="readme">
-        <article><h1>avenir</h1><p>Lightweight async library based on lazy futures. Inspired by <a href="https://github.com/folktale/data.task">folktale's Data.Task</a></p>
+        <article><h1>avenir</h1><p>Lightweight async library based on lazy Futures. Inspired by
+<a href="https://github.com/folktale/data.task">folktale's Data.Task</a></p>
 <p>The library provides <code>Tasks</code> for writing asynchronous code with JavaScript in
 Node and the Browser.</p>
 <p>Unlike Promises, the standard async abstraction, Tasks are <em>lazy</em> and <em>cancellable</em>.</p>
-<p>Unlike Data.Task you can join results from other running Tasks which provides the
-same multiple-consumer model of promises (attaching multiple thenables).</p>
-<p>However, Tasks provides a strict ownership model of the control flow : The runner
-of the  Task can cancel the running Task but the joiners of the running Task can not
-cancel it, they only can unsubscribe from its outcome. This simplifies cancellation
-semantics and avoids non trivial solutions provided by other multi-consumer solutions
-(like reference counting).</p>
-<h3>Tasks are Lazy</h3><p>When you create and combine Tasks using various methods (<code>then</code>, <code>all</code>, <code>race</code>),
-The executor of the Task is not started which means no side effect takes place at this
-moment. To effectively start a Task, you must invoke its <code>run</code> method</p>
-<pre class="prettyprint source lang-js"><code>// Nothing happens here
-const sumTask =
-    delay(1000, 10).then(x =>
-    delay(1000, 20).then(y =>
-     x + y
-    ))
-
-// Execution starts from here
-const future = sumTask.run(onSuccess, onError, onCancel)</code></pre><h3>Tasks are Cancellable</h3><p>After a Task has been started, it can be cancelled using the returned Future</p>
-<pre class="prettyprint source lang-js"><code>// using Generator syntax
-const sumTask = Task.do(function*() {
-    const x = yield delay(1000, 10)
-    const y = yield delay(1000, 20)
-    return x + y
-})
-
-// Execution starts from here
-const future = sumTask.run(onSuccess, onError, onCancel)
+<p>Although the model follows Data.Task, avenir adopts some different
+<a href="comparison.md">design decision</a>.</p>
+<h2>Rationale</h2><p>Consider the following example using Promises</p>
+<pre class="prettyprint source lang-js"><code>var promiseA = someAsynFn()
+var promiseB = promiseA.then(...)</code></pre><p>Let's suppose that Promises were given builtin cancellation. And that we invoke
+<code>promiseB.cancel()</code>. The question is how do we interpret the effects of this
+cancellation ?</p>
+<ol>
+<li>Should we only cancel <code>promiseB</code> and not touch <code>promiseA</code> ?</li>
+<li>Or should we also cancel <code>promiseA</code> ?</li>
+</ol>
+<p>In case of (1) then what if the code represented an atomic operation ? In this
+case a cancellation means cancelling the whole operation and this implies
+cancelling also <code>promiseA</code> if it's still pending.</p>
+<p>Note that even of we write it inline like this</p>
+<pre class="prettyprint source lang-js"><code>var promiseB = someAsynFn().then(...)</code></pre><p>There is no way we can infer the atomicity of the operation because Promises are
+immutables and each invocation of <code>then</code> returns a new Promise. The new Promise
+itself is not aware of how it was derived.</p>
+<p>Now if we choose (2) and cancel the whole chain, then imagine there is another
+operation that was attached to <code>promiseA</code> (or that will be attached in some point
+of the future[no pun intended] in our code).</p>
+<pre class="prettyprint source lang-js"><code>var promiseA = someAsynFn()
+var promiseB = promiseA.then(...)
+var promiseC = promiseA.then(...)</code></pre><p>Now if <code>promiseB.cancel()</code> triggers cancellation on <code>promiseA</code> then this cancellation
+will propagate downward and cancel also <code>promiseC</code> (because it can not be derived
+from a cancelled Promise) but we were only aiming at cancelling <code>promiseB</code>
+not <code>promiseC</code>.</p>
+<p>Here we have 2 separate chains <code>promiseA -&gt; promiseB</code> and <code>promiseA -&gt; promiseC</code>.
+Another perspective is to view the operation as a <em>tree</em> with <code>promiseA</code> as root and
+with 2 branches whose leafs are <code>promiseB</code> and <code>promiseC</code>. So cancelling one branch
+should not affect the other branch (however cancelling the root or cancelling
+the <em>whole</em> tree should propagate to the branches as well).</p>
+<p>Now a not-so-dumb answer is that we should choose how to cancel depending on the
+situation. But the problem is precisely how do we infer this situation. Promises,
+by nature, denote only one step on the operation. A Promise, once created,
+lacks the <em>context</em> in which it is itself composed with other Promises to build
+a control flow. So we can not simply implement a <code>cancel</code> method in the Promise
+prototype because we do not have enough information to interpret the meaning of
+the cancellation.</p>
+<p>One possible solution is to extract out the cancellation capability into a first
+class value. For example we can create some token and then pass it down
+to all async operations that construct Promises. The createor of the token can
+request the cancellation at any moment. The async operations that have
+received the token can then be notified of the cancellation. This is the
+solution that was planned to be implemented into the TC39 standard (but was
+dropped because of lack of consensus).</p>
+<p>We can view the token based solution as an indirect way to describe chained
+steps as a whole unit. A created cancel token denote itself the whole operation
+and all async functions that receive the token are part of the unit.</p>
+<p>Another solution, which IMHO is simpler, more composable and ergonomic is by
+using <em>Tasks</em>.</p>
+<h3>Tasks are lazy Promises</h3><p>A Task can be thought of as a <em>lazy Promise</em>. For example, the following Promise</p>
+<pre class="prettyprint source lang-js"><code>const promiseA = new Promise((resolve, reject) = {
+  invokeAsyncFunc((err, res) => {
+    if(err) reject(err)
+    else resolve(res)
+  })
+})</code></pre><p>Can be made lazy like this</p>
+<pre class="prettyprint source lang-js"><code>const lazyPromiseA = () => new Promise((resolve, reject) = {
+  invokeAsyncFunc((err, res) => {
+    if(err) reject(err)
+    else resolve(res)
+  })
+})</code></pre><p>The difference is that in the first case the operation is started right after the
+Promise creation. While in the second we've only constructed a description of t
+he operation.</p>
+<p>Now suppose we want to <em>describe a new operation</em> that is the chaining of the above
+and another one</p>
+<pre class="prettyprint source lang-js"><code>const lazySequence = () => lazyPromiseA().then(...)</code></pre><p>So what's the difference ? one may ask.</p>
+<p>Well in the case of normal/hot promises, we've seen that we can not interpret</p>
+<pre class="prettyprint source lang-js"><code>var hotSequence = promiseA.then(...)</code></pre><p>as a whole operation that includes <code>promiseA</code> because this one can be used
+elsewhere in another sequence.</p>
+<p>However in the case of lazy Promises we do have this knowledge. Precisely because
+the operation has not started yet. And simply because we will start it ourselves
+as a whole operation.</p>
+<p>So Tasks are just this and nothing more. The [Task]
+(https://yelouafi.github.io/avenir/Task.html)
+abstraction provided by this library or by [folktale's Data.Task]
+(http://origamitower.github.io/folktale/en/folktale.data.task.html) just wraps
+this lazy execution and makes it more composable by providing functions to
+describe the control glow (like <code>then</code>/<code>chain</code>, <code>all</code>, <code>race</code> ...)</p>
+<p>In avenir, you can create a Task with a API similar to Promises using
+<a href="https://yelouafi.github.io/avenir/Task.html#.from">Task.from</a>. Note the executor
+argument takes also a <code>cancel</code> callback. This can be invoked by the executor to
+trigger cancellation from the source.</p>
+<pre class="prettyprint source lang-js"><code>const myTask = Task.from((resolve, reject, cancel) = {
+  invokeAsyncFunc((err, res) => {
+    if(err) reject(err)
+    else resolve(res)
+  })
+})</code></pre><p>The executor of the Task is not started at the Task creation. It means no side
+effect takes place at this moment yet. To effectively start a Task, you must
+invoke its <code>run</code> method</p>
+<pre class="prettyprint source lang-js"><code>// Execution starts from here
+myTask.run(onSuccess, onError, onCancel)</code></pre><h3>Tasks are Cancellable</h3><p>After a Task has been started, it can be cancelled using the returned [Future]
+(https://yelouafi.github.io/avenir/Future.html)</p>
+<pre class="prettyprint source lang-js"><code>// Execution starts from here
+const future = myTask.run(onSuccess, onError, onCancel)
 
 // ... after some time
-future.cancel('some reason')</code></pre><h3>Tasks are Joinable</h3><p>A task can join the result of another started Task</p>
-<pre class="prettyprint source lang-js"><code>const loginTask = Task.do(function*() {
-  // ...
+future.cancel('some reason')</code></pre><p>You can use <a href="https://yelouafi.github.io/avenir/Task.html#then">Task#then</a>
+to chain another step</p>
+<pre class="prettyprint source lang-js"><code>const myWholeTask = myTask.then(...)</code></pre><p>myWholeTask is a new Task that describes the whole sequence. So when starting it</p>
+<pre class="prettyprint source lang-js"><code>// Task#fork is the same as Task#run but does not take callbcaks
+const future = myWholeTask.fork()</code></pre><p>Cancelling the returned future will cancel the whole sequence. Due to their lazy
+nature, Tasks give an unambiguous meaning to cancellation.</p>
+<h3>Tasks are Joinable</h3><p>Sometimes a Task needs to <em>join</em> the result of an already started Task (ie a Future).
+This can happen if, for example,  the 2 Tasks are started from 2 unrelated
+contexts (like 2 events handlers in separate UIs).</p>
+<p>For example suppose we have a login Task that is started when the user clicks on
+a UI button</p>
+<pre class="prettyprint source lang-js"><code>const loginTask = Task.from((resolve, reject, cancel) => {
+  api.authorize((err, ok) => {
+    // attach a cancellation from the source
+    onCancelLoginClick(() => cancel('Login cancelled'))
+    if(err) reject(err)
+    else resolve(ok)
+  })
 })
 
-// fork run the task and returns the future of the Task
-const loginFuture = loginTask.fork()
 
-// The owner of the future can cancel it
-cancelLoginButton.addEventListener(() => loginFuture.cancel('by user'))
+let loginFuture
 
-
-// An auxiliary task
-const fetchTask = Task.do(function*() {
-  /*
-    wait for login to complete.
-    Rejection/cancellation of loginFuture will reject/cancel fetchTask
-  */
+function loginClickHandler() {
+  loginFuture = loginTask.run(onSuccess, onReject, onCancel)
+}</code></pre><p>In another part of the UI, we want to start fetching something but only after the
+login succeds. We can use <a href="https://yelouafi.github.io/avenir/Task.html#.join">Task.join</a>
+to wait for loginFuture to finish</p>
+<pre class="prettyprint source lang-js"><code>// Task.do allows using Generator syntax
+const fetchDataTask = Task.do(function*() {
   yield Task.join(loginFuture)
-  // ... continue here
-})</code></pre><h1>Documentation</h1><p><a href="https://yelouafi.github.io/avenir/">API Docs</a></p></article>
+  const data = yield myFetchTask
+  return data
+})</code></pre><p>Above, we used the Generator syntax to describe the operation. We wait for loginFuture
+to resolve before continuing. If the login task was cancelled (either by invoking
+<code>loginFuture.cancel()</code> or by the loginTask itself if the user clicks on a CancelLogin
+button) then the fetchDataTask will be cancelled as well.</p>
+<p>Observe that if we cancel fetchDataTask for some other reason while we'reason
+still waiting for loginFuture</p>
+<pre class="prettyprint source lang-js"><code>const future = fetchDataTask.fork()
+
+// for some reason later
+future.cancel('some reason')</code></pre><p>Then this will only affect fetchDataTask and not loginTask. Cancelling the result
+of <code>Task.join(loginFuture)</code> (which is itself a Task) will only unsubscribe from
+the result of loginFuture. The loginTask stays unaffected.</p>
+<h1>Documentation</h1><p><a href="https://yelouafi.github.io/avenir/">API Docs</a></p></article>
     </section>
 
 
@@ -115,7 +211,7 @@ const fetchTask = Task.do(function*() {
 <br class="clear">
 
 <footer>
-    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun May 14 2017 00:40:07 GMT+0000 (UTC) using the Minami theme.
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun May 14 2017 03:14:41 GMT+0000 (UTC) using the Minami theme.
 </footer>
 
 <script>prettyPrint();</script>
