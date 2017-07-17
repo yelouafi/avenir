@@ -1,7 +1,6 @@
-const { assert, assertFunc, noop, append } = require("./utils");
-const {
-  Status: { PENDING, RESOLVED, REJECTED, CANCELLED }
-} = require("./constants");
+import { assert, assertFunc, noop, append } from "./utils";
+import { Status } from "./constants";
+const { PENDING, RESOLVED, REJECTED, CANCELLED } = Status;
 
 function fxor(fut) {
   let ok;
@@ -23,7 +22,7 @@ function fxor(fut) {
 const assertFut = arg =>
   assert(arg instanceof Future, "argument is not a Future");
 
-class Future {
+export default class Future {
   /**
    * Creates a Future that will get its outcome using the provided
    * {@link executor} function.
@@ -402,5 +401,3 @@ class Future {
 
 const appendF = Future.lift2(append);
 const ZERO = new Future(() => {});
-
-module.exports = Future;

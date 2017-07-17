@@ -1,4 +1,6 @@
-# dev-oly folders
+src
+
+# dev-only folders
 .babelrc
 .eslintrc
 .bookignore

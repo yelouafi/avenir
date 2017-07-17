@@ -1,10 +1,11 @@
-const Future = require("./Future");
-const { assert, assertFunc, append, noop, raise } = require("./utils");
-const { Status: { PENDING, REJECTED, CANCELLED } } = require("./constants");
+import Future from "./Future";
+import { assert, assertFunc, append, noop, raise } from "./utils";
+import { Status } from "./constants";
+const { PENDING, REJECTED, CANCELLED } = Status;
 
 const assertTask = arg => assert(arg instanceof Task, "argument is not a Task");
 
-class Task {
+export default class Task {
   /**
    * Creates a Task from a function that returns a Future.
    *
@@ -435,8 +436,6 @@ class Task {
 
 const appendT = Task.lift2(append);
 const EMPTY_TASK = new Task(Future.empty);
-
-module.exports = Task;
 
 /**
  * This function is used to execute the an action for a given {@link Task} or

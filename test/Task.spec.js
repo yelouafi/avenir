@@ -1,10 +1,9 @@
-const test = require("tape");
-const Future = require("../src/Future");
-const Task = require("../src/Task");
-const { noop, logger } = require("../src/utils");
-const {
-  Status: { PENDING, RESOLVED, REJECTED, CANCELLED }
-} = require("../src/constants");
+import test from "tape";
+import Future from "../src/Future";
+import Task from "../src/Task";
+import { noop, logger } from "../src/utils";
+import { Status } from "../src/constants";
+const { PENDING, RESOLVED, REJECTED, CANCELLED } = Status;
 
 logger.disable();
 
