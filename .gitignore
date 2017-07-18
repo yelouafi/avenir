@@ -1,3 +1,7 @@
+# Output directories
+es
+lib
+
 # Logs
 logs
 *.log

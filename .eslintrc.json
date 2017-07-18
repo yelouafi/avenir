@@ -5,6 +5,7 @@
     "node": true,
     "es6": true
   },
+  "parser": "babel-eslint",
   "rules": {
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
   }

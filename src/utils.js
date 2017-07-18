@@ -1,19 +1,19 @@
-const { ERR_BAD_ARG } = require("./constants");
+import { E_FUN_ARG } from "./constants";
 
-const nodeEnv = typeof process !== "undefined" && process.env.NODE_ENV;
-const isDev = nodeEnv === "development";
+const isDev = process.env.NODE_ENV === "development";
 
-const isFunc = (exports.isFunc = x => typeof x === "function");
-exports.isGen = x => x && isFunc(x.next) && isFunc(x.throw) && isFunc(x.return);
-exports.noop = () => {};
-exports.ident = x => x;
-exports.pipe = (f, g) => x => g(f(x));
-exports.curry2 = f => x => y => f(x, y);
-exports.raise = e => {
+export const isFunc = x => typeof x === "function";
+export const isGen = x =>
+  x && isFunc(x.next) && isFunc(x.throw) && isFunc(x.return);
+export const noop = () => {};
+export const ident = x => x;
+export const pipe = (f, g) => x => g(f(x));
+export const curry2 = f => x => y => f(x, y);
+export const raise = e => {
   throw e;
 };
 
-exports.append = (xs, x) => {
+export const append = (xs, x) => {
   let ys = xs.slice();
   ys.push(x);
   return ys;
@@ -26,37 +26,37 @@ const LOG_INFOS = 3;
 
 var logLevel = isDev ? LOG_WARNINGS : LOG_ERRORS;
 
-const logger = (exports.logger = {});
+export const logger = {
+  disable: () => (logLevel = LOG_NOTHING),
+  enableInfos: () => (logLevel = LOG_INFOS),
+  enableWarnings: () => (logLevel = LOG_WARNINGS),
 
-logger.disable = () => (logLevel = LOG_NOTHING);
-logger.enableInfos = () => (logLevel = LOG_INFOS);
-logger.enableWarnings = () => (logLevel = LOG_WARNINGS);
+  info(message) {
+    /* eslint-disable no-console */
+    if (logLevel >= LOG_INFOS) console.info(message);
+  },
 
-logger.info = function logInfo(message) {
-  /* eslint-disable no-console */
-  if (logLevel >= LOG_INFOS) console.info(message);
-};
+  warn(message) {
+    /* eslint-disable no-console */
+    if (logLevel >= LOG_WARNINGS) console.warn(message);
+  },
 
-logger.warn = function logWarning(message) {
-  /* eslint-disable no-console */
-  if (logLevel >= LOG_WARNINGS) console.warn(message);
-};
-
-logger.error = function logError(err) {
-  /* eslint-disable no-console */
-  if (logLevel >= LOG_ERRORS) {
-    console.error(err && err.message ? err.message : err);
+  error(err) {
+    /* eslint-disable no-console */
+    if (logLevel >= LOG_ERRORS) {
+      console.error(err && err.message ? err.message : err);
+    }
   }
 };
 
-const assert = (exports.assert = (cond, msg) => {
+export const assert = (cond, msg) => {
   if (!cond) {
     const err = new TypeError(msg);
     logger.error(err);
     throw err;
   }
-});
+};
 
-exports.assertFunc = arg => {
-  assert(isFunc(arg), ERR_BAD_ARG);
+export const assertFunc = arg => {
+  assert(isFunc(arg), E_FUN_ARG);
 };
