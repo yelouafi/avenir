@@ -10,7 +10,7 @@ Unlike Promises, Tasks are _lazy_ and _cancellable_.
 
 avenir Tasks differ also in a few point from folktale Data.Task. 
 
-For more details, see [comparisaon](comparison.md).
+For more details, see [comparison](comparison.md).
 
 ## Rationale
 
